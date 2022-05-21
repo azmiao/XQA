@@ -146,12 +146,12 @@ async def xqa(bot, ev):
     db = await get_database()
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
+    image_list = re.findall(r'(\[CQ:image,file=(\S+)\.image,url=(https\S+,subType=[0-9])\])', message)
+    if image_list:
+        for image in image_list:
+            message = message.replace(image[0], f'[CQ:image,file={image[1]}.image]')
     # 优先回复自己的问答
     for que in list(user_dict.keys()):
-        image_list = re.findall(r'(\[CQ:image,file=(\S+)\.image,url=(https\S+,subType=[0-9])\])', message)
-        if image_list:
-            for image in image_list:
-                message = message.replace(image[0], f'[CQ:image,file={image[1]}.image]')
         match_que = re.match(que, message)
         if match_que:
             ans = await replace_message(match_que, user_dict, que)
@@ -159,6 +159,7 @@ async def xqa(bot, ev):
     # 没有自己的问答才回复有人问
     if not ans:
         for que in list(group_dict['all'].keys()):
+            print(que, message)
             match_que = re.match(que, message)
             if match_que:
                 ans = await replace_message(match_que, group_dict['all'], que)
