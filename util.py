@@ -4,12 +4,7 @@ import os
 import re
 import random
 
-from hoshino import priv, R
-
-# 判断权限
-async def judge_permission(ev) -> int:
-    role = priv.get_user_priv(ev)
-    return role
+from hoshino import R
 
 # 判断是否在群里
 async def judge_ismember(bot, group_id: str, user_id: str) -> bool:
@@ -65,15 +60,6 @@ async def replace_message(match_que: re.Match, match_dict: dict, que: str) -> st
         ans = ans.replace(f'${i+1}', match_que.group(i+1))
     return ans
 
-# 转义CQ码
-async def process_cq(que_raw: str) -> str:
-    cq_list = re.findall(r'(\[CQ:(\S+)\])', que_raw)
-    if cq_list:
-        for cq_msg in cq_list:
-            new_msg = '\[CQ:' + cq_msg[1] + '\]'
-            que_raw = que_raw.replace(cq_msg[0], new_msg)
-    return que_raw
-
 # 调整转义分割字符 “#”
 async def adjust_list(list_tmp: list, char: str) -> list:
     ans_list = []
@@ -87,3 +73,28 @@ async def adjust_list(list_tmp: list, char: str) -> list:
             str_tmp = list_tmp[i+1] if i+1 < len(list_tmp) else list_tmp[i]
         i += 1
     return ans_list
+
+# 单独调整图片CQ码
+async def adjust_img(str_raw: str) -> str:
+    image_list = re.findall(r'(\[CQ:image,file=(\S+)\.image,url=(https\S+,subType=[0-9])\])', str_raw)
+    if image_list:
+        for image in image_list:
+            str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}.image]')# 缓存形式
+    return str_raw
+
+# 匹配消息
+async def match_ans(info: dict, message: str, ans: str) -> str:
+    for que in list(info.keys()):
+        # 优先完全匹配
+        if que == message:
+            ans = random.choice(info[que])
+            break
+        # 其次正则匹配
+        try:
+            if re.match(que, message):
+                ans = await replace_message(re.match(que, message), info, que)
+                break
+        except re.error:
+            # 如果que不是re.pattern的形式就跳过
+            continue
+    return ans

@@ -8,10 +8,10 @@ XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的
 
 import re
 from .operate_msg import set_que, show_que, del_que
-from .util import judge_permission, judge_ismember, get_database, replace_message
+from .util import judge_ismember, get_database, match_ans, adjust_img
 from .move_data import write_info
 
-from hoshino import Service
+from hoshino import Service, priv
 
 sv_help = '''
 =====注意=====
@@ -51,23 +51,18 @@ async def help(bot, ev):
 @sv.on_message('group')
 async def set_question(bot, ev):
     results = re.match(r'^(全群|有人|我)问([\s\S]*)你答([\s\S]*)$', str(ev.message))
-    if not results:
-        return
-    que_type = results.group(1)
-    que_raw = results.group(2)
-    ans_raw = results.group(3)
+    if not results: return
+    que_type, que_raw, ans_raw = results.group(1), results.group(2), results.group(3)
     if (not que_raw) or (not ans_raw):
         await bot.finish(ev, f'发送“{que_type}问◯◯你答◯◯”我才记得住~')
-    group_id = str(ev.group_id)
-    user_id = str(ev.user_id)
+    group_id, user_id = str(ev.group_id), str(ev.user_id)
+
     if que_type == '有人':
-        permission = await judge_permission(ev)
-        if permission < 21:
+        if priv.get_user_priv(ev) < 21:
             await bot.finish(ev, f'有人问只能群管理设置呢')
         user_id = 'all'
     elif que_type == '全群':
-        permission = await judge_permission(ev)
-        if permission < 999:
+        if priv.get_user_priv(ev) < 999:
             await bot.finish(ev, f'全群问只能维护组设置呢')
         group_id = 'all'
     msg = await set_que(bot, group_id, user_id, que_raw, ans_raw)
@@ -76,13 +71,10 @@ async def set_question(bot, ev):
 # 看问答，支持模糊搜索
 @sv.on_rex(r'^看看(有人|我)问([\s\S]*)$')
 async def show_question(bot, ev):
-    que_type = ev['match'].group(1)
-    search_str = ev['match'].group(2)
-    group_id = str(ev.group_id)
-    user_id = str(ev.user_id)
+    que_type, search_str = ev['match'].group(1), ev['match'].group(2)
+    group_id, user_id = str(ev.group_id), str(ev.user_id)
     if que_type == '有人':
-        permission = await judge_permission(ev)
-        if permission < 21:
+        if priv.get_user_priv(ev) < 21:
             await bot.finish(ev, f'有人问只能群管理设置呢')
         user_id = 'all'
     msg = await show_que(group_id, user_id, search_str)
@@ -91,92 +83,53 @@ async def show_question(bot, ev):
 # 搜索某个成员的问题和回答，限群管理员
 @sv.on_prefix('查问答')
 async def search_question(bot, ev):
-    permission = await judge_permission(ev)
-    if permission < 21:
+    if priv.get_user_priv(ev) < 21:
         await bot.finish(ev, f'搜索某个成员的问答只能群管理操作呢。个人查询问答请使用“看看我问”+搜索内容')
-    text_raw = str(ev.message)
-    search_match = re.match(r'\[CQ:at,qq=([0-9]+)\] ?(\S*)', text_raw)
+    search_match = re.match(r'\[CQ:at,qq=([0-9]+)\] ?(\S*)', str(ev.message))
     try:
-        user_id = search_match.group(1)
-        search_str = search_match.group(2)
+        user_id, search_str = search_match.group(1), search_match.group(2)
     except:
         await bot.finish(ev, f'请输入正确的格式！详情参考“问答帮助”')
     group_id = str(ev.group_id)
-    flag = await judge_ismember(bot, group_id, user_id)
-    if not flag:
+
+    if not await judge_ismember(bot, group_id, user_id):
         await bot.finish(ev, f'该成员{user_id}不在该群')
     msg = f'QQ({user_id}) 的查询结果：\n'
     msg += await show_que(group_id, user_id, search_str)
-    # 下面那行是查问题的同时查回答，默认注释掉了，感觉没必要
-    # msg += '\n' + await show_que(group_id, user_id, search_str, is_keys=False)
     await bot.send(ev, msg)
 
 # 不要回答，管理员可以@人删除回答
 @sv.on_message('group')
 async def delete_question(bot, ev):
     unque_match = re.match(r'^(\[CQ:at,qq=[0-9]+\])? ?不要回答([\s\S]*)$', str(ev.message))
-    if not unque_match:
-        return
-    user = unque_match.group(1)
-    unque_str = unque_match.group(2)
-    group_id = str(ev.group_id)
-    user_id = str(ev.user_id)
+    if not unque_match: return
+    user, unque_str = unque_match.group(1), unque_match.group(2)
+    group_id, user_id = str(ev.group_id), str(ev.user_id)
+
     if user:
         user_id = str(re.findall(r'[0-9]+', user)[0])
-        flag = await judge_ismember(bot, group_id, user_id)
-        if not flag:
+        if not await judge_ismember(bot, group_id, user_id):
             await bot.finish(ev, f'该成员{user_id}不在该群')
-        permission = await judge_permission(ev)
-        if permission < 21:
+        if priv.get_user_priv(ev) < 21:
             await bot.finish(ev, f'删除他人问答仅限群管理员呢')
-    image_list = re.findall(r'(\[CQ:image,file=(\S+)\.image,url=(https\S+,subType=[0-9])\])', unque_str)
-    if image_list:
-        for image in image_list:
-            unque_str = unque_str.replace(image[0], f'[CQ:image,file={image[1]}.image]')
+    unque_str = await adjust_img(unque_str)
     msg = await del_que(group_id, user_id, unque_str)
     await bot.send(ev, msg)
 
 # 回复问答
 @sv.on_message('group')
 async def xqa(bot, ev):
-    group_id = str(ev.group_id)
-    user_id = str(ev.user_id)
-    message = str(ev.message)
-    ans = ''
+    group_id, user_id, message = str(ev.group_id), str(ev.user_id), str(ev.message)
     db = await get_database()
     group_dict = db.get(group_id, {'all': {}})
-    user_dict = group_dict.get(user_id, {})
-    image_list = re.findall(r'(\[CQ:image,file=(\S+)\.image,url=(https\S+,subType=[0-9])\])', message)
-    if image_list:
-        for image in image_list:
-            message = message.replace(image[0], f'[CQ:image,file={image[1]}.image]')
+    message = await adjust_img(message)
     # 优先回复自己的问答
-    for que in list(user_dict.keys()):
-        match_que = re.match(que, message)
-        if match_que:
-            ans = await replace_message(match_que, user_dict, que)
-            break
+    ans = await match_ans(group_dict.get(user_id, {}), message, '')
     # 没有自己的问答才回复有人问
-    if not ans:
-        for que in list(group_dict['all'].keys()):
-            print(que, message)
-            match_que = re.match(que, message)
-            if match_que:
-                ans = await replace_message(match_que, group_dict['all'], que)
-                break
-    # 无匹配结果
-    if not ans:
-        return
-    cq_list = re.findall(r'(\\\[CQ:(\S+)\\\])', ans)
-    ans_end = ans
-    if cq_list:
-        for cq_msg in cq_list:
-            new_msg = '[CQ:' + cq_msg[1] + ']'
-            ans_end = ans_end.replace(cq_msg[0], new_msg)
-    await bot.send(ev, ans_end)
+    ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
+    if ans: await bot.send(ev, ans)
 
 # 复制艾琳佬数据至此插件
-# 不会影响之前的数据，大概（
 @sv.on_fullmatch('.xqa_move_data')
 async def move_move(bot, ev):
     await bot.send(ev, await write_info())

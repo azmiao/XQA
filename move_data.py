@@ -43,16 +43,6 @@ async def copydirs(from_file, to_file):
     for f in files:
         shutil.copy(from_file + '/' + f, to_file + '/' + f)
 
-# 转义
-async def process_cq(que_raw: str) -> str:
-    que_raw.replace('\\', '\\\\').replace('|', '\|')
-    que_raw.replace('?', '\?').replace('.', '\.')
-    que_raw.replace('+', '\+').replace('*', '\*')
-    que_raw.replace('[', '\[').replace(']', '\]')
-    que_raw.replace('[', '\[').replace(']', '\]')
-    que_raw.replace('^', '\^').replace('$', '\$')
-    return que_raw
-
 # 写入本插件的数据库
 async def write_info():
     if not os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'eqa/data/db.sqlite')):
@@ -86,7 +76,6 @@ async def write_info():
                     msg += f"[CQ:image,file=file:///{os.path.abspath(img_path)}]".replace('\\', '/')
             msg_list = [msg]
             # 迁移文本数据
-            question = await process_cq(question)
             group_dict = db.get(group_id, {'all': {}})
             if not is_me:
                 group_dict['all'][question] = msg_list

@@ -1,14 +1,9 @@
-import re
-from .util import get_database, get_g_list, get_search, adjust_list, process_cq
+from .util import get_database, get_g_list, get_search, adjust_list, adjust_img
 
 # 保存问答
 async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) -> str:
-    image_list = re.findall(r'(\[CQ:image,file=(\S+)\.image,url=(https\S+,subType=[0-9])\])', que_raw)
-    if image_list:
-        for image in image_list:
-            que_raw = que_raw.replace(image[0], f'[CQ:image,file={image[1]}.image]')
-    que_raw = await process_cq(que_raw)
     db = await get_database()
+    que_raw = await adjust_img(que_raw)
     ans = ans_raw.split('#')
     ans = await adjust_list(ans, '#')
     if group_id == 'all':
@@ -29,7 +24,7 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) 
         db[group_id] = group_dict
     return '好的我记住了'
 
-# 显示问答
+# 显示问答 (is_keys: 是->显示问题 否->显示回答, 目前用不上)
 async def show_que(group_id: str, user_id: str, search_str: str, is_keys: bool=True) -> str:
     db = await get_database()
     msg = f'查询 “{search_str}” 相关的结果如下：\n' if search_str else ''
@@ -43,26 +38,16 @@ async def show_que(group_id: str, user_id: str, search_str: str, is_keys: bool=T
         user_dict = group_dict.get(user_id, {})
         que_list = list(user_dict.keys()) if is_keys else list(group_dict['all'].values())
         que_list = await get_search(que_list, search_str)
-    end_list = []
-    for que in que_list:
-        cq_list = re.findall(r'(\\\[CQ:(\S+)\\\])', que)
-        que_end = que
-        if cq_list:
-            for cq_msg in cq_list:
-                new_msg = '[CQ:' + cq_msg[1] + ']'
-                que_end = que_end.replace(cq_msg[0], new_msg)
-        end_list.append(que_end)
     show_type = '问题' if is_keys else '回答'
     if not que_list:
         msg += f'没有找到任何{subject}设置的{show_type}呢'
     else:
-        msg += f'本群中{subject}设置的{show_type}有：\n' + ' | '.join(end_list)
+        msg += f'本群中{subject}设置的{show_type}有：\n' + ' | '.join(que_list)
     return msg
 
 # 删除问答
 async def del_que(group_id: str, user_id: str, unque_str: str) -> str:
     db = await get_database()
-    unque_str = await process_cq(unque_str)
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
     if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):
