@@ -42,7 +42,7 @@ v1.0    首次提交
 
 | 功能命令 | 介绍 |
 | :---- | :---- |
-| .xqa_move_data | 点号别漏，该功能是将原来艾琳佬的[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)的数据迁移一份过来，不会删除原文件，新文件生成在res/img/xqa下<br>可能有未知BUG，使用后请自己检查，如遇问题请反馈 |
+| .xqa_move_data | 如果之前使用过艾琳佬的[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)，可以通过该功能将数据迁移一份过来，不会删除原文件，但请确保modules下有eqa，且eqa启用不启用均可，新数据文件生成在res/img/xqa下<br>注意：点号别漏，可能有未知BUG，使用后请自己检查，如遇问题请反馈 |
 
 ## 举几个例子
 
