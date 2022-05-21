@@ -9,7 +9,7 @@ XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的
 import re
 from .operate_msg import set_que, show_que, del_que
 from .util import judge_ismember, get_database, match_ans, adjust_img
-from .move_data import write_info
+from .move_data import get_dict, write_info
 
 from hoshino import Service, priv
 
@@ -129,7 +129,14 @@ async def xqa(bot, ev):
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans: await bot.send(ev, ans)
 
-# 复制艾琳佬数据至此插件
-@sv.on_fullmatch('.xqa_move_data')
-async def move_move(bot, ev):
+# 提取艾琳佬的eqa数据
+@sv.on_fullmatch('.xqa_extract_data')
+async def hahahaha(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER): return
+    await bot.send(ev, await get_dict())
+
+# 写入提取出的数据
+@sv.on_fullmatch('.xqa_write_data')
+async def xixixixi(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER): return
     await bot.send(ev, await write_info())

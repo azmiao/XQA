@@ -91,8 +91,8 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
             break
         # 其次正则匹配
         try:
-            if re.match(que, message):
-                ans = await replace_message(re.match(que, message), info, que)
+            if re.match(que + '$', message):
+                ans = await replace_message(re.match(que + '$', message), info, que)
                 break
         except re.error:
             # 如果que不是re.pattern的形式就跳过

@@ -42,9 +42,17 @@ v1.0    首次提交
 
 #### 附赠
 
+>   注意：移动数据只能移动每个群的有人问和我问，eqa的能多个群的有人问这里只能复制一个群(创建该有人问的那个群)，本插件里多群问答请使用全群问
+    其他正则匹配的内容可能无法复制过来，您可以参照README自己修改db_config.json
+
+    总结:
+    第一个命令：eqa的db数据 -> db_config.json -> data_config.json，有需要的请修改data_config.json
+    第二个命令：data_config.json -> data.sqlite数据库(本插件使用的数据库)
+
 | 功能命令 | 介绍 |
 | :---- | :---- |
-| .xqa_move_data | 如果之前使用过艾琳佬的[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)，可以通过该功能将数据迁移一份过来，不会删除原文件，但请确保modules下有eqa，且eqa启用不启用均可，新数据文件生成在res/img/xqa下<br>注意：点号别漏，可能有未知BUG，使用后请自己检查，如遇问题请反馈 |
+| .xqa_extract_data | 如果之前使用过艾琳佬的[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)，可以通过该功能将数据提取出来，不会删除原文件，但请确保modules下有eqa，且eqa启用不启用均可，提取的eqa数据生成在res/img/xqa/db_config.json，由该eqa数据格式化后生成的本xqa的数据在res/img/xqa/data_config.json，但注意部分数据无法复制过来，因此您可以打开自己修改，数据结构见本页末<br>注意：点号别漏 |
+| .xqa_write_data | 将上一步提取的数据写入数据库，原有xqa的相同问答会被覆盖 |
 
 ## 举几个例子
 
@@ -102,4 +110,44 @@ v1.0    首次提交
 
 ## 使用教程
 
-emmm，就不写了吧，反正别忘了装依赖
+emmm，就不写了吧，反正别忘了装依赖就行
+
+## 提取的数据结构 `data_config.json`
+
+```
+注："all"为有人问
+保留全部CQ码，转移过来的图片依旧保持绝对目录，新设置的图片只用缓存
+全部不转义，仅有问题由正则，正则就直接写正则匹配表达式
+仅有回答里有回流，回流符号$直接写不用转义
+
+{
+    "qq群1": {
+        "all": {
+            "问题1": [
+                "回答1",
+                "回答2",
+                "回答3"
+            ],
+            "问题2": [
+                "回答"
+            ]
+        },
+        "群员qq1": {
+            "问题1": [
+                "回答"
+            ]
+        },
+        "群员qq2": {
+            "问题1": [
+                "回答"
+            ]
+        }
+    },
+    "qq群2": {
+        "all": {
+            "问题1": [
+                "回答"
+            ]
+        }
+}
+```
