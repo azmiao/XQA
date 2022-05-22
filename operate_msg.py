@@ -4,6 +4,7 @@ from .util import get_database, get_g_list, get_search, adjust_list, adjust_img
 # 保存问答
 async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) -> str:
     db = await get_database()
+    que_raw = html.unescape(que_raw)
     que_raw = await adjust_img(que_raw)
     ans_raw = html.unescape(ans_raw)
     ans = ans_raw.split('#')
@@ -29,6 +30,7 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) 
 # 显示问答 (is_keys: 是->显示问题 否->显示回答, 目前用不上)
 async def show_que(group_id: str, user_id: str, search_str: str, is_keys: bool=True) -> str:
     db = await get_database()
+    search_str = html.unescape(search_str)
     msg = f'查询 “{search_str}” 相关的结果如下：\n' if search_str else ''
     subject = '管理员' if user_id == 'all' else '你'
     if user_id == 'all':
@@ -50,6 +52,7 @@ async def show_que(group_id: str, user_id: str, search_str: str, is_keys: bool=T
 # 删除问答
 async def del_que(group_id: str, user_id: str, unque_str: str) -> str:
     db = await get_database()
+    unque_str = html.unescape(unque_str)
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
     if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):

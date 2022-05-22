@@ -7,6 +7,7 @@ XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的
 '''
 
 import re
+import html
 from .operate_msg import set_que, show_que, del_que
 from .util import judge_ismember, get_database, match_ans, adjust_img
 from .move_data import get_dict, write_info
@@ -122,6 +123,7 @@ async def xqa(bot, ev):
     group_id, user_id, message = str(ev.group_id), str(ev.user_id), str(ev.message)
     db = await get_database()
     group_dict = db.get(group_id, {'all': {}})
+    message = html.unescape(message)
     message = await adjust_img(message)
     # 优先回复自己的问答
     ans = await match_ans(group_dict.get(user_id, {}), message, '')
