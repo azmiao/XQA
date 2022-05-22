@@ -53,7 +53,7 @@ v1.0    首次提交
 
 | 功能命令 | 介绍 |
 | :---- | :---- |
-| .xqa_extract_data | 如果之前使用过艾琳佬的[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)，可以通过该功能将数据提取出来，不会删除原文件，但请确保modules下有eqa，且eqa启用不启用均可，提取的eqa数据生成在res/img/xqa/db_config.json,您可以打开自己修改，数据结构见本页末<br>注意：点号别漏 |
+| .xqa_extract_data | 如果之前使用过艾琳佬的[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)，可以通过该功能将数据提取出来，不会删除原文件，但请确保modules下有eqa，且eqa启用不启用均可，注意：点号别漏 |
 | .xqa_write_data | 将上一步提取的数据写入数据库，原有xqa的相同问答会被覆盖 |
 
 ## 举几个例子
