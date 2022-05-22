@@ -1,9 +1,11 @@
+import html
 from .util import get_database, get_g_list, get_search, adjust_list, adjust_img
 
 # 保存问答
 async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) -> str:
     db = await get_database()
     que_raw = await adjust_img(que_raw)
+    ans_raw = html.unescape(ans_raw)
     ans = ans_raw.split('#')
     ans = await adjust_list(ans, '#')
     if group_id == 'all':
