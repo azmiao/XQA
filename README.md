@@ -8,6 +8,8 @@ PS.lan佬不开源，艾琳佬没有回流，所以还是自己动手丰衣足�
 
 ## 注意
 
+请务必先将gocqhttp更新至1.0.0-rc1，旧版可能有点问题
+
 本插件理论上可以和[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)同时存在，请自测效果
 
 附赠迁移数据功能，请看下方功能介绍
