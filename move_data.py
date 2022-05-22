@@ -67,9 +67,9 @@ async def get_dict():
             json.dump(dict(db), f, indent=4, ensure_ascii=False)
         await create_info()
         return f'''
-成功临时转存数据至 -> hoshino/resimg/xqa/db_config.json，您可以打开改文件进行相关修改，数据结构详见README
+成功临时转存数据至 -> hoshino/resimg/xqa/data_config.json，您可以打开改文件进行相关修改，数据结构详见README
 注意：移动数据只能移动每个群的有人问和我问，eqa的能多个群的有人问这里只能复制一个群(创建该有人问的那个群)，本插件里多群问答请使用全群问
-其他正则匹配的内容可能无法复制过来，您可以参照README自己修改db_config.json
+其他正则匹配的内容可能无法复制过来，您可以参照README自己修改data_config.json
 
 本命令总结：eqa的db数据 -> db_config.json -> data_config.json，有需要的请修改data_config.json
 下一个命令：data_config.json -> data.sqlite数据库(本插件使用的数据库)

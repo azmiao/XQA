@@ -43,7 +43,7 @@ v1.0    首次提交
 #### 附赠
 
 >   注意：移动数据只能移动每个群的有人问和我问，eqa的能多个群的有人问这里只能复制一个群(创建该有人问的那个群)，本插件里多群问答请使用全群问
-    其他正则匹配的内容可能无法复制过来，您可以参照README自己修改db_config.json
+    其他正则匹配的内容可能无法复制过来，您可以参照README自己修改data_config.json
 
     总结:
     第一个命令：eqa的db数据 -> db_config.json -> data_config.json，有需要的请修改data_config.json
@@ -51,7 +51,7 @@ v1.0    首次提交
 
 | 功能命令 | 介绍 |
 | :---- | :---- |
-| .xqa_extract_data | 如果之前使用过艾琳佬的[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)，可以通过该功能将数据提取出来，不会删除原文件，但请确保modules下有eqa，且eqa启用不启用均可，提取的eqa数据生成在res/img/xqa/db_config.json，由该eqa数据格式化后生成的本xqa的数据在res/img/xqa/data_config.json，但注意部分数据无法复制过来，因此您可以打开自己修改，数据结构见本页末<br>注意：点号别漏 |
+| .xqa_extract_data | 如果之前使用过艾琳佬的[eqa](https://github.com/pcrbot/erinilis-modules/tree/master/eqa)，可以通过该功能将数据提取出来，不会删除原文件，但请确保modules下有eqa，且eqa启用不启用均可，提取的eqa数据生成在res/img/xqa/db_config.json,您可以打开自己修改，数据结构见本页末<br>注意：点号别漏 |
 | .xqa_write_data | 将上一步提取的数据写入数据库，原有xqa的相同问答会被覆盖 |
 
 ## 举几个例子
