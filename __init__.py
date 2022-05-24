@@ -1,15 +1,15 @@
 '''
 作者：AZMIAO
 
-版本：1.0
+版本：1.1.0
 
 XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
 '''
 
 import re
 import html
-from .operate_msg import set_que, show_que, del_que
-from .util import judge_ismember, get_database, match_ans, adjust_img
+from .operate_msg import set_que, show_que, del_que, copy_que
+from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list
 from .move_data import get_dict, write_info
 
 from hoshino import Service, priv
@@ -25,8 +25,7 @@ sv_help = '''
 bot就会回复：抱着优衣酱可爱的自己
 =====================
 [我问A你答B] 设置个人问题
-[有人问C你答D] 群管理员设置全群问答
-[全群问E你答F] 维护组设置所有群都回答的内容
+[有人问C你答D] 群管理员设置本群的有人问
 
 [查问答@某人] 限群管理单独查某人的全部问答
 [查问答@某人G] 限群管理单独查某人的问答，G为搜索内容
@@ -34,8 +33,8 @@ bot就会回复：抱着优衣酱可爱的自己
 [不要回答H] 删除某个回答H，优先删除我问其次有人问
 [@某人不要回答H] 限群管理删除某人的某个回答H
 
-[看看有人问] 看全群设置的问题
-[看看有人问X] 搜索全群设置的问题，X为搜索内容
+[看看有人问] 看本群设置的有人问
+[看看有人问X] 搜索本群设置的有人问，X为搜索内容
 
 [看看我问] 看自己设置的问题
 [看看我问Y] 搜索自己设置的问题，Y为搜索内容
@@ -70,14 +69,22 @@ async def set_question(bot, ev):
     await bot.send(ev, msg)
 
 # 看问答，支持模糊搜索
-@sv.on_rex(r'^看看(有人|我)问([\s\S]*)$')
+@sv.on_rex(r'^看看(有人|我|全群)问([\s\S]*)$')
 async def show_question(bot, ev):
     que_type, search_str = ev['match'].group(1), ev['match'].group(2)
     group_id, user_id = str(ev.group_id), str(ev.user_id)
-    if que_type == '有人':
-        if priv.get_user_priv(ev) < 21:
-            await bot.finish(ev, f'有人问只能群管理设置呢')
-        user_id = 'all'
+    if que_type == '全群':
+        if priv.get_user_priv(ev) < 999:
+            await bot.finish(ev, f'只有维护组可以搜索全群设置的有人问')
+        group_list = await get_g_list(bot)
+        if not search_str:
+            await bot.finish(ev, f'搜索全群设置的有人问必须带上搜索内容')
+        msg = f'查询 “{search_str}” 相关的结果如下：'
+        for group_id in group_list:
+            msg += await show_que(group_id, 'all', search_str, False)
+        msg = '没有查到任何结果呢' if msg == f'查询 “{search_str}” 相关的结果如下：' else msg
+        await bot.finish(ev, msg)
+    user_id = 'all' if que_type == '有人' else user_id
     msg = await show_que(group_id, user_id, search_str)
     await bot.send(ev, msg)
 
@@ -102,11 +109,22 @@ async def search_question(bot, ev):
 # 不要回答，管理员可以@人删除回答
 @sv.on_message('group')
 async def delete_question(bot, ev):
-    unque_match = re.match(r'^(\[CQ:at,qq=[0-9]+\])? ?不要回答([\s\S]*)$', str(ev.message))
+    unque_match = re.match(r'^(\[CQ:at,qq=[0-9]+\])? ?(全群)?不要回答([\s\S]*)$', str(ev.message))
     if not unque_match: return
-    user, unque_str = unque_match.group(1), unque_match.group(2)
+    user, is_all, unque_str = unque_match.group(1), unque_match.group(2), unque_match.group(3)
     group_id, user_id = str(ev.group_id), str(ev.user_id)
-
+    if is_all:
+        if priv.get_user_priv(ev) < 999:
+            await bot.finish(ev, f'只有维护组可以删除所有群设置的有人问')
+        group_list = await get_g_list(bot)
+        if not unque_str:
+            await bot.finish(ev, f'删除全群设置的有人问必须带上删除内容')
+        msg = f'全群删除问答 {unque_str} 的结果:'
+        for group_id in group_list:
+            msg += await del_que(group_id, 'all', unque_str, False)
+        msg = '没有在任何群里找到该问题呢' if msg == f'全群删除问答 {unque_str} 的结果:' else msg
+        await bot.send(ev, msg)
+        return
     if user:
         user_id = str(re.findall(r'[0-9]+', user)[0])
         if not await judge_ismember(bot, group_id, user_id):
@@ -130,6 +148,22 @@ async def xqa(bot, ev):
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans: await bot.send(ev, ans)
+
+# 复制问答
+@sv.on_prefix('复制问答from')
+async def copy_question(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.finish(ev, f'该功能限维护组')
+    group_list = str(ev.message).split('to')
+    try:
+        group_1, group_2 = str(int(group_list[0])), str(int(group_list[1]))
+    except:
+        await bot.finish(ev, f'请输入正确的格式！')
+    group_list = await get_g_list(bot)
+    if (group_1 not in group_list) or (group_2 not in group_list):
+        await bot.finish(ev, f'群号输入错误！请检查')
+    msg = await copy_que(group_1, group_2)
+    await bot.send(ev, msg)
 
 # 提取艾琳佬的eqa数据
 @sv.on_fullmatch('.xqa_extract_data')
