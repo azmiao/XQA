@@ -7,6 +7,7 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) 
     que_raw = html.unescape(que_raw)
     que_raw = await adjust_img(que_raw)
     ans_raw = html.unescape(ans_raw)
+    ans_raw = await adjust_img(ans_raw)
     ans = ans_raw.split('#')
     ans = await adjust_list(ans, '#')
     if group_id == 'all':
