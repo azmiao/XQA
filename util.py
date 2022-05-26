@@ -84,7 +84,7 @@ async def adjust_img(str_raw: str) -> str:
 
 # 匹配消息
 async def match_ans(info: dict, message: str, ans: str) -> str:
-    for que in list(info.keys()):
+    for que in list(info.keys()).reverse():
         # 优先完全匹配
         if que == message:
             ans = random.choice(info[que])
