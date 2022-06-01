@@ -76,7 +76,7 @@ async def adjust_list(list_tmp: list, char: str) -> list:
 
 # 单独调整图片CQ码
 async def adjust_img(str_raw: str) -> str:
-    image_list = re.findall(r'(\[CQ:image,file=(\S+)\.image\S*\])', str_raw)
+    image_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image(\S*?)\])', str_raw)
     if image_list:
         for image in image_list:
             str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}.image]')# 缓存形式
