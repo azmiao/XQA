@@ -3,8 +3,13 @@ import json
 import os
 import re
 import random
-
+import urllib
 from hoshino import R
+
+#储存数据位置（初次使用后不可改动）
+filepath = R.img('xqa').path #数据在res文件夹里
+#filepath = os.path.dirname(__file__)#数据在插件文件夹里
+
 
 # 判断是否在群里
 async def judge_ismember(bot, group_id: str, user_id: str) -> bool:
@@ -21,10 +26,10 @@ async def judge_ismember(bot, group_id: str, user_id: str) -> bool:
 # 获取数据库
 async def get_database() -> SqliteDict:
     # 创建目录
-    img_path = os.path.join(R.img('xqa').path, 'img/')
+    img_path = os.path.join(filepath, 'img/')
     if not os.path.exists(img_path):
         os.makedirs(img_path)
-    db_path = os.path.join(R.img('xqa').path, 'data.sqlite')
+    db_path = os.path.join(filepath, 'data.sqlite')
     # 替换默认的pickle为josn的形式读写数据库
     db = SqliteDict(db_path, encode=json.dumps, decode=json.loads, autocommit=True)
     return db
@@ -74,12 +79,21 @@ async def adjust_list(list_tmp: list, char: str) -> list:
         i += 1
     return ans_list
 
-# 单独调整图片CQ码
+#图片下载
+async def downloadimg(img,file):
+    urllib.request.urlretrieve(url=img, filename=file)
+    return
+
+# 图片CQ码处理
 async def adjust_img(str_raw: str) -> str:
-    image_list = re.findall(r'(\[CQ:image,file=(\S+)\.image\S*\])', str_raw)
+    image_list = re.findall(r'(\[CQ:image,file=(\S+?),url=(\S+?),subType\S*\])', str_raw)
     if image_list:
         for image in image_list:
-            str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}.image]')# 缓存形式
+            imgpath = os.path.join(filepath, 'img/')
+            file = os.path.join(imgpath, image[1])
+            if image[1] not in os.listdir(imgpath):
+                await downloadimg(image[2], file)
+            str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(file)}]')#不知道怎么搞相对路径，用绝对路径先
     return str_raw
 
 # 匹配消息
