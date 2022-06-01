@@ -86,14 +86,14 @@ async def downloadimg(img,file):
 
 # 图片CQ码处理
 async def adjust_img(str_raw: str) -> str:
-    image_list = re.findall(r'(\[CQ:image,file=(\S+?),url=(\S+?),subType\S*\])', str_raw)
+    image_list = re.findall(r'(\[CQ:image,file=(\S+?),url=(\S+?),subType(\S*?)\])', str_raw)
     if image_list:
         for image in image_list:
             imgpath = os.path.join(filepath, 'img/')
             file = os.path.join(imgpath, image[1])
             if image[1] not in os.listdir(imgpath):
                 await downloadimg(image[2], file)
-            str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(file)}]')#不知道怎么搞相对路径，用绝对路径先
+            str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(file)}]')
     return str_raw
 
 # 匹配消息
