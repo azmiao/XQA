@@ -1,13 +1,13 @@
 import html
-from .util import get_database, get_g_list, get_search, adjust_list, adjust_img
+from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img
 
 # 保存问答
 async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) -> str:
     db = await get_database()
     que_raw = html.unescape(que_raw)
-    que_raw = await adjust_img(que_raw)
+    que_raw = await adjust_img(bot,que_raw, save = True)
     ans_raw = html.unescape(ans_raw)
-    ans_raw = await adjust_img(ans_raw)
+    ans_raw = await adjust_img(bot,ans_raw, save = True)
     ans = ans_raw.split('#')
     ans = await adjust_list(ans, '#')
     if group_id == 'all':
@@ -51,6 +51,12 @@ async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool=T
 # 删除问答
 async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool=True) -> str:
     db = await get_database()
+    try :
+        await delete_img(unque_str)
+        print ('删除问答的图片成功')
+    except:
+        print ('删除问答的图片失败')
+        pass
     unque_str = html.unescape(unque_str)
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
@@ -63,10 +69,16 @@ async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool=Tru
     else:
         ans = group_dict['all'].get(unque_str)
         group_dict['all'].pop(unque_str)
+    try :
+        await delete_img(ans)
+        print ('删除问答的图片成功')
+    except:
+        print ('删除问答的图片失败')
+        pass
     ans_str = '#'.join(ans)
     db[group_id] = group_dict
     msg_head = '' if is_self else f'\n群{group_id}中'
-    return f'{msg_head}我不再回答 “{ans_str}” 了'
+    return f'{msg_head}我不再回答 “{ans_str}” 了'#想了想，这个地方暂时不改，容易头疼
 
 # 复制问答
 async def copy_que(group_1, group_2):

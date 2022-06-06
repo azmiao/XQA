@@ -84,17 +84,51 @@ async def downloadimg(img,file):
     urllib.request.urlretrieve(url=img, filename=file)
     return
 
-# 图片CQ码处理
-async def adjust_img(str_raw: str) -> str:
-    image_list = re.findall(r'(\[CQ:image,file=(\S+?),url=(\S+?),subType\S*\])', str_raw)
+
+# 进行图片处理
+async def adjust_img(bot,str_raw: str, is_ans: bool = False,save: bool = False) -> str:#存疑，先想想怎么改
+    print(str_raw)
+    image_list = re.findall(r'(\[CQ:image,file=(\S+?)\,url=(\S+?)\,subType\S*?\])', str_raw)
+    oldimage_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image])', str_raw)
+    if oldimage_list:#尝试缓存之前的图片
+        oldimage_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image(\S*?)\])', str_raw)
+        print('走上')
+        print(oldimage_list)
+        for image in oldimage_list:
+            try :
+                imgpath = os.path.join(filepath, 'img/')
+                imgurl = await bot.get_image(file = image[1]+'.image')
+                file = os.path.join(imgpath, image[1]+'.image')
+                if save :
+                    if image[1]+'.image' not in os.listdir(imgpath):
+                        await downloadimg(imgurl['url'], file) 
+                        print(f'download{image[0]}succeed')
+            except:
+                print('False')
+                pass
+            if is_ans :
+                imgfile = filepath + '/img/' + image[1] + '.image'
+                str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(imgfile)}]')
     if image_list:
+        print(image_list)
+        print('走下')
         for image in image_list:
             imgpath = os.path.join(filepath, 'img/')
             file = os.path.join(imgpath, image[1])
-            if image[1] not in os.listdir(imgpath):
-                await downloadimg(image[2], file)
-            str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(file)}]')#不知道怎么搞相对路径，用绝对路径先
+            if save :
+                if image[1]+'.image' not in os.listdir(imgpath):
+                    try:
+                        await downloadimg(image[2], file)
+                    except:
+                        pass
+                    print(f'download{image[2]}succeed')
+            if is_ans :
+                imgfile = filepath + '/img/' + image[1] + '.image'
+                str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(imgfile)}]')
+            str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}]')
     return str_raw
+
+
 
 # 匹配消息
 async def match_ans(info: dict, message: str, ans: str) -> str:
@@ -114,3 +148,17 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
             # 如果que不是re.pattern的形式就跳过
             continue
     return ans
+
+#删除图片缓存
+async def delete_img(file: list):
+    try:
+        file = str(file)
+        imgfile = re.findall(r'(\[CQ:image,file=(.+?)\.image])', file)
+        for img in imgfile :
+            file = os.path.abspath(filepath + '/img/' + img[1])
+            os.remove(file+'.image')
+            print(f'delete{file}succeed')
+    except Exception as e:
+        print('Delete Img False:', e)
+        pass
+    return
