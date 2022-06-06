@@ -7,8 +7,8 @@ import urllib
 from hoshino import R
 
 #储存数据位置（初次使用后不可改动）
-filepath = R.img('xqa').path #数据在res文件夹里
-#filepath = os.path.dirname(__file__)#数据在插件文件夹里
+file_path = R.img('xqa').path #数据在res文件夹里
+#file_path = os.path.dirname(__file__)#数据在插件文件夹里
 
 
 # 判断是否在群里
@@ -26,10 +26,10 @@ async def judge_ismember(bot, group_id: str, user_id: str) -> bool:
 # 获取数据库
 async def get_database() -> SqliteDict:
     # 创建目录
-    img_path = os.path.join(filepath, 'img/')
+    img_path = os.path.join(file_path, 'img/')
     if not os.path.exists(img_path):
         os.makedirs(img_path)
-    db_path = os.path.join(filepath, 'data.sqlite')
+    db_path = os.path.join(file_path, 'data.sqlite')
     # 替换默认的pickle为josn的形式读写数据库
     db = SqliteDict(db_path, encode=json.dumps, decode=json.loads, autocommit=True)
     return db
@@ -86,45 +86,37 @@ async def downloadimg(img,file):
 
 
 # 进行图片处理
-async def adjust_img(bot,str_raw: str, is_ans: bool = False,save: bool = False) -> str:#存疑，先想想怎么改
-    print(str_raw)
+async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:#应该可以用了
     image_list = re.findall(r'(\[CQ:image,file=(\S+?)\,url=(\S+?)\,subType\S*?\])', str_raw)
     oldimage_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image])', str_raw)
     if oldimage_list:#尝试缓存之前的图片
         oldimage_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image(\S*?)\])', str_raw)
-        print('走上')
-        print(oldimage_list)
         for image in oldimage_list:
             try :
-                imgpath = os.path.join(filepath, 'img/')
+                img_path = os.path.join(file_path, 'img/')
                 imgurl = await bot.get_image(file = image[1]+'.image')
-                file = os.path.join(imgpath, image[1]+'.image')
+                file = os.path.join(img_path, image[1]+'.image')
                 if save :
-                    if image[1]+'.image' not in os.listdir(imgpath):
+                    if image[1]+'.image' not in os.listdir(img_path):
                         await downloadimg(imgurl['url'], file) 
-                        print(f'download{image[0]}succeed')
             except:
-                print('False')
                 pass
             if is_ans :
-                imgfile = filepath + '/img/' + image[1] + '.image'
-                str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(imgfile)}]')
+                img_file = file_path + '/img/' + image[1] + '.image'
+                str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
     if image_list:
-        print(image_list)
-        print('走下')
         for image in image_list:
-            imgpath = os.path.join(filepath, 'img/')
-            file = os.path.join(imgpath, image[1])
+            img_path = os.path.join(file_path, 'img/')
+            file = os.path.join(img_path, image[1])
             if save :
-                if image[1]+'.image' not in os.listdir(imgpath):
+                if image[1]+'.image' not in os.listdir(img_path):
                     try:
                         await downloadimg(image[2], file)
                     except:
                         pass
-                    print(f'download{image[2]}succeed')
             if is_ans :
-                imgfile = filepath + '/img/' + image[1] + '.image'
-                str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(imgfile)}]')
+                img_file = file_path + '/img/' + image[1] + '.image'
+                str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
             str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}]')
     return str_raw
 
@@ -153,12 +145,10 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
 async def delete_img(file: list):
     try:
         file = str(file)
-        imgfile = re.findall(r'(\[CQ:image,file=(.+?)\.image])', file)
-        for img in imgfile :
-            file = os.path.abspath(filepath + '/img/' + img[1])
+        img_file = re.findall(r'(\[CQ:image,file=(.+?)\.image])', file)
+        for img in img_file :
+            file = os.path.abspath(file_path + '/img/' + img[1])
             os.remove(file+'.image')
-            print(f'delete{file}succeed')
-    except Exception as e:
-        print('Delete Img False:', e)
+    except:
         pass
     return

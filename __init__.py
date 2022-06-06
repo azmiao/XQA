@@ -66,8 +66,7 @@ async def set_question(bot, ev):
             await bot.finish(ev, f'全群问只能维护组设置呢')
         group_id = 'all'
     msg = await set_que(bot, group_id, user_id, que_raw, ans_raw)
-    print(msg)
-    #await bot.send(ev, msg)
+    await bot.send(ev, msg)
 
 # 看问答，支持模糊搜索
 @sv.on_rex(r'^看看(有人|我|全群)问([\s\S]*)$')
@@ -134,8 +133,7 @@ async def delete_question(bot, ev):
             await bot.finish(ev, f'删除他人问答仅限群管理员呢')
     unque_str = await adjust_img(bot,unque_str)
     msg = await del_que(group_id, user_id, unque_str)
-    print(msg)
-    #await bot.send(ev, msg)
+    await bot.send(ev, msg)
 
 # 回复问答
 @sv.on_message('group')
@@ -151,8 +149,7 @@ async def xqa(bot, ev):
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans:
         ans = await adjust_img(bot, ans , is_ans = True , save = True)
-        print(ans)
-        #await bot.send(ev, ans)
+        await bot.send(ev, ans)
 
 # 复制问答
 @sv.on_prefix('复制问答from')

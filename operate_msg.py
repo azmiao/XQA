@@ -53,9 +53,7 @@ async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool=Tru
     db = await get_database()
     try :
         await delete_img(unque_str)
-        print ('删除问答的图片成功')
     except:
-        print ('删除问答的图片失败')
         pass
     unque_str = html.unescape(unque_str)
     group_dict = db.get(group_id, {'all': {}})
@@ -71,9 +69,7 @@ async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool=Tru
         group_dict['all'].pop(unque_str)
     try :
         await delete_img(ans)
-        print ('删除问答的图片成功')
     except:
-        print ('删除问答的图片失败')
         pass
     ans_str = '#'.join(ans)
     db[group_id] = group_dict
