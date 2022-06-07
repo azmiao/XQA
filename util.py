@@ -84,7 +84,6 @@ async def downloadimg(img,file):
     urllib.request.urlretrieve(url=img, filename=file)
     return
 
-<<<<<<< HEAD
 
 # 进行图片处理
 async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:#应该可以用了
@@ -105,14 +104,8 @@ async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False
             if is_ans :
                 img_file = file_path + '/img/' + image[1] + '.image'
                 str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
-=======
-# 图片CQ码处理
-async def adjust_img(str_raw: str) -> str:
-    image_list = re.findall(r'(\[CQ:image,file=(\S+?),url=(\S+?),subType(\S*?)\])', str_raw)
->>>>>>> main
     if image_list:
         for image in image_list:
-<<<<<<< HEAD
             img_path = os.path.join(file_path, 'img/')
             file = os.path.join(img_path, image[1])
             if save :
@@ -125,13 +118,6 @@ async def adjust_img(str_raw: str) -> str:
                 img_file = file_path + '/img/' + image[1] + '.image'
                 str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
             str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}]')
-=======
-            imgpath = os.path.join(filepath, 'img/')
-            file = os.path.join(imgpath, image[1])
-            if image[1] not in os.listdir(imgpath):
-                await downloadimg(image[2], file)
-            str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(file)}]')
->>>>>>> main
     return str_raw
 
 
@@ -166,3 +152,11 @@ async def delete_img(file: list):
     except:
         pass
     return
+
+
+#删除覆盖问题图片
+async def delete_old_img(msg: str):
+        try :
+            await delete_img(msg)
+        except :
+            pass
