@@ -103,7 +103,11 @@ async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False
                 pass
             if is_ans :
                 img_file = file_path + '/img/' + image[1] + '.image'
-                str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
+                imgf = image[1] + '.image'
+                if imgf in os.listdir(img_path):
+                    str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
+                else:
+                    str_raw = str_raw.replace(image[0], f'[CQ:image,file={imgf}]')
     if image_list:
         for image in image_list:
             img_path = os.path.join(file_path, 'img/')
@@ -116,7 +120,10 @@ async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False
                         pass
             if is_ans :
                 img_file = file_path + '/img/' + image[1] + '.image'
-                str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
+                if image[1]+'.image' in os.listdir(img_path):
+                    str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
+                else :
+                    str_raw = str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}]')
             str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}]')
     return str_raw
 
