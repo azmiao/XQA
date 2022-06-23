@@ -1,7 +1,7 @@
 '''
 作者：AZMIAO
 
-版本：1.1.0
+版本：1.2.0
 
 XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
 '''
@@ -10,7 +10,7 @@ import re
 import html
 from .operate_msg import set_que, show_que, del_que, copy_que
 from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list
-from .move_data import get_dict, write_info
+from .move_data import get_dict, write_info, format_info
 
 from hoshino import Service, priv
 
@@ -65,7 +65,7 @@ async def set_question(bot, ev):
         if priv.get_user_priv(ev) < 999:
             await bot.finish(ev, f'全群问只能维护组设置呢')
         group_id = 'all'
-    msg = await set_que(bot, group_id, user_id, que_raw, ans_raw)
+    msg = await set_que(bot, group_id, user_id, que_raw, ans_raw, str(ev.group_id))
     await bot.send(ev, msg)
 
 # 看问答，支持模糊搜索
@@ -131,7 +131,8 @@ async def delete_question(bot, ev):
             await bot.finish(ev, f'该成员{user_id}不在该群')
         if priv.get_user_priv(ev) < 21:
             await bot.finish(ev, f'删除他人问答仅限群管理员呢')
-    unque_str = await adjust_img(bot,unque_str)
+    # 仅调整不要回答的问题中的图片
+    unque_str = await adjust_img(bot, unque_str)
     msg = await del_que(group_id, user_id, unque_str)
     await bot.send(ev, msg)
 
@@ -142,14 +143,13 @@ async def xqa(bot, ev):
     db = await get_database()
     group_dict = db.get(group_id, {'all': {}})
     message = html.unescape(message)
-    message = await adjust_img(bot,message)
+    # 仅调整问题中的图片
+    message = await adjust_img(bot, message)
     # 优先回复自己的问答
     ans = await match_ans(group_dict.get(user_id, {}), message, '')
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
-    if ans:
-        ans = await adjust_img(bot, ans , is_ans = True , save = True)
-        await bot.send(ev, ans)
+    if ans: await bot.send(ev, ans)
 
 # 复制问答
 @sv.on_prefix('复制问答from')
@@ -178,3 +178,10 @@ async def hahahaha(bot, ev):
 async def xixixixi(bot, ev):
     if not priv.check_priv(ev, priv.SUPERUSER): return
     await bot.send(ev, await write_info())
+
+# 格式化数据
+@sv.on_fullmatch('.xqa_format_data')
+async def lalalala(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER): return
+    await bot.send(ev, '正在进行格式化，请查看后台日志')
+    await bot.send(ev, await format_info(bot))

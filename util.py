@@ -4,12 +4,12 @@ import os
 import re
 import random
 import urllib
-from hoshino import R
 
-#储存数据位置（初次使用后不可改动）
-file_path = R.img('xqa').path #数据在res文件夹里
-#file_path = os.path.dirname(__file__)#数据在插件文件夹里
+from hoshino import R, logger
 
+# 数据储存数据位置（初次使用后不可改动，默认与hoshino原生代码风格一致）
+file_path = R.img('xqa').path # 数据在res文件夹里
+# file_path = os.path.dirname(__file__) # 数据在插件文件夹里
 
 # 判断是否在群里
 async def judge_ismember(bot, group_id: str, user_id: str) -> bool:
@@ -79,56 +79,6 @@ async def adjust_list(list_tmp: list, char: str) -> list:
         i += 1
     return ans_list
 
-#图片下载
-async def downloadimg(img,file):
-    urllib.request.urlretrieve(url=img, filename=file)
-    return
-
-
-# 进行图片处理
-async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:#应该可以用了
-    image_list = re.findall(r'(\[CQ:image,file=(\S+?)\,url=(\S+?)\,subType\S*?\])', str_raw)
-    oldimage_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image])', str_raw)
-    if oldimage_list:#尝试缓存之前的图片
-        oldimage_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image(\S*?)\])', str_raw)
-        for image in oldimage_list:
-            try :
-                img_path = os.path.join(file_path, 'img/')
-                imgurl = await bot.get_image(file = image[1]+'.image')
-                file = os.path.join(img_path, image[1]+'.image')
-                if save :
-                    if image[1]+'.image' not in os.listdir(img_path):
-                        await downloadimg(imgurl['url'], file) 
-            except:
-                pass
-            if is_ans :
-                img_file = file_path + '/img/' + image[1] + '.image'
-                imgf = image[1] + '.image'
-                if imgf in os.listdir(img_path):
-                    str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
-                else:
-                    str_raw = str_raw.replace(image[0], f'[CQ:image,file={imgf}]')
-    if image_list:
-        for image in image_list:
-            img_path = os.path.join(file_path, 'img/')
-            file = os.path.join(img_path, image[1])
-            if save :
-                if image[1]+'.image' not in os.listdir(img_path):
-                    try:
-                        await downloadimg(image[2], file)
-                    except:
-                        pass
-            if is_ans :
-                img_file = file_path + '/img/' + image[1] + '.image'
-                if image[1]+'.image' in os.listdir(img_path):
-                    str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
-                else :
-                    str_raw = str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}]')
-            str_raw = str_raw.replace(image[0], f'[CQ:image,file={image[1]}]')
-    return str_raw
-
-
-
 # 匹配消息
 async def match_ans(info: dict, message: str, ans: str) -> str:
     list_tmp = list(info.keys())
@@ -148,22 +98,49 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
             continue
     return ans
 
-#删除图片缓存
-async def delete_img(file: list):
-    try:
-        file = str(file)
-        img_file = re.findall(r'(\[CQ:image,file=(.+?)\.image])', file)
-        for img in img_file :
-            file = os.path.abspath(file_path + '/img/' + img[1])
-            os.remove(file+'.image')
-    except:
-        pass
-    return
-
-
-
-async def delete_old_img(group_id: str, user_id: str, msg: str):
-        try :
-            await delete_img(msg)
-        except :
+# 进行图片处理和下载
+async def adjust_img(bot, str_raw: str, save: bool = False) -> str:
+    img_path = os.path.join(file_path, 'img/')
+    # 缓存之前旧版的图片，如果是新问答这一块应该都不会执行
+    for image in re.findall(r'(\[CQ:image,file=(\S+?\.image)\])', str_raw):
+        if '\\' in image[1]:
+            continue
+        imgurl = await bot.get_image(file = image[1])
+        file = os.path.join(img_path, image[1])
+        img_file = file_path + '/img/' + image[1]
+        try:
+            urllib.request.urlretrieve(url=imgurl['url'], filename=file)
+            logger.critical(f'XQA: 已下载图片{image[1]}')
+            str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
+        except:
+            logger.critical(f'XQA: 图片{image[1]}已经过期，请重新设置问答')
             pass
+    # 缓存新问答的图片，如果是旧问答这一块应该都不会执行
+    for image in re.findall(r'(\[CQ:image,file=(\S+?)\,url=(\S+?)\,subType\S*?\])', str_raw):
+        try:
+            file = os.path.join(img_path, image[1])
+            img_file = file_path + '/img/' + image[1]
+            if save and image[1] not in os.listdir(img_path):
+                urllib.request.urlretrieve(url=image[2], filename=file)
+                logger.info(f'XQA: 已下载图片{image[1]}')
+            str_raw = str_raw.replace(image[0], f'[CQ:image,file=file:///{os.path.abspath(img_file)}]')
+        except:
+            pass
+    return str_raw
+
+# 删除图片
+async def delete_img(list_raw: list) -> list:
+    list_end = []
+    for str_raw in list_raw:
+        img_list = re.findall(r'(\[CQ:image,file=file:///(.+?\.image)\])', str_raw)
+        for img in img_list:
+            file = img[1]
+            try:
+                os.remove(file)
+                logger.info(f'XQA: 已删除图片{file}')
+            except:
+                logger.info(f'XQA: 图片{file}不存在，无需删除')
+        # 返回值换回缓存显示
+        str_raw = str_raw.replace('file:///'+str(os.path.abspath(file_path + '/img'))+'\\', '')
+        list_end.append(str_raw)
+    return list_end

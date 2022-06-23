@@ -11,6 +11,7 @@ import re
 import shutil
 
 from hoshino import R, logger
+from .util import get_database, adjust_img
 
 # 艾琳佬的数据库
 async def read_db():
@@ -77,12 +78,6 @@ async def get_dict():
     else:
         return 'hoshino/resimg/xqa/db_config.json 已存在，因此不再重新转存临时数据，需要重新生成请手动删除后再次使用本命令'
 
-# 本插件的数据库
-async def read_data_db():
-    db_path = os.path.join(R.img('xqa').path, 'data.sqlite')
-    db = SqliteDict(db_path, encode=json.dumps, decode=json.loads, autocommit=True)
-    return db
-
 # 复制图片文件
 async def copydirs(from_file, to_file):
     if not os.path.exists(to_file):
@@ -98,7 +93,7 @@ async def write_info():
     if not os.path.exists(os.path.join(R.img('xqa').path, 'db_config.json')):
         return '临时数据文件不存在，请先使用命令：.xqa_extract_data'
     # 新建新的数据库
-    db = await read_data_db()
+    db = await get_database()
     with open(os.path.join(R.img('xqa').path, 'data_config.json'), 'r', encoding='UTF-8') as f:
         config = json.load(f)
     logger.info('创建本插件的数据库成功，开始迁移数据...')
@@ -110,3 +105,31 @@ async def write_info():
     await copydirs(from_file, os.path.join(R.img('xqa').path, f'img/'))
     logger.info('复制完成，进程结束')
     return '数据复制完成，请自己检查确认是否正常'
+
+# 格式化旧版数据
+async def format_info(bot):
+    db = await get_database()
+    config = dict(db)
+    for group_id in list(config.keys()):
+        for user_id in list(config[group_id].keys()):
+            for question in list(config[group_id][user_id].keys()):
+                user = '有人问' if user_id == 'all' else 'qq:' + user_id
+                logger.critical(f'开始格式化群{group_id}的{user}的问题: {question}')
+                # 对问题：调整并下载图片
+                question_new = await adjust_img(bot, question, save = True)
+                # 对回答：调整并下载图片
+                answer_list = []
+                for answer in config[group_id][user_id][question]:
+                    answer_new = await adjust_img(bot, answer, save = True)
+                    answer_list.append(answer_new)
+                # 修改config内容
+                if question_new != question:
+                    config[group_id][user_id][question_new] = answer_list
+                    config[group_id][user_id].pop(question)
+                else:
+                    config[group_id][user_id][question] = answer_list
+                logger.critical(f'该问题格式化完成！')
+    # 写入格式化后的数据
+    for group_id in list(config.keys()):
+        db[group_id] = config[group_id]
+    return '格式化完成！请自行在hoshino/log/critical.log检查格式化结果，若有图片过期的情况请自行删除他们或重新设置问题覆盖他们。'
