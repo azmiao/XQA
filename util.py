@@ -161,8 +161,8 @@ async def delete_img(file: list):
     return
 
 
-#删除覆盖问题图片
-async def delete_old_img(msg: str):
+
+async def delete_old_img(group_id: str, user_id: str, msg: str):
         try :
             await delete_img(msg)
         except :

@@ -1,3 +1,4 @@
+from cmath import exp
 import html
 from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img,delete_old_img,match_ans
 
@@ -7,10 +8,15 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) 
     que_raw = html.unescape(que_raw)
     que_raw = await adjust_img(bot,que_raw, save = True)
     ans_raw = html.unescape(ans_raw)
-    if match_ans(db.get(user_id, {}), ans_raw, ''):
-        ans = match_ans(group_dict.get(user_id, {}), ans_raw, '')
+    group_dict = db.get(group_id, {'all': {}})
+    if match_ans(group_dict['all'], que_raw, ''):
+        ans = await match_ans(group_dict['all'], que_raw, '')
         ans = await adjust_img(bot,ans)
-        await delete_old_img(ans)
+        await delete_old_img(group_id, user_id, ans)
+    if match_ans(group_dict.get(user_id, {}), que_raw, ''):
+        ans = await match_ans(group_dict.get(user_id, {}), que_raw, '')
+        ans = await adjust_img(bot,ans)
+        await delete_old_img(group_id, user_id, ans)
     ans_raw = await adjust_img(bot,ans_raw, save = True)
     ans = ans_raw.split('#')
     ans = await adjust_list(ans, '#')
