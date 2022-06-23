@@ -1,23 +1,23 @@
 from cmath import exp
 import html
-from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img,delete_old_img,match_ans
+from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img, delete_old_img, match_ans
+
 
 # 保存问答
 async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) -> str:
     db = await get_database()
     que_raw = html.unescape(que_raw)
-    que_raw = await adjust_img(bot,que_raw, save = True)
+    que_raw = await adjust_img(bot, que_raw, save=True)
     ans_raw = html.unescape(ans_raw)
     group_dict = db.get(group_id, {'all': {}})
-    if match_ans(group_dict['all'], que_raw, ''):
-        ans = await match_ans(group_dict['all'], que_raw, '')
-        ans = await adjust_img(bot,ans)
-        await delete_old_img(group_id, user_id, ans)
-    if match_ans(group_dict.get(user_id, {}), que_raw, ''):
+    try:
         ans = await match_ans(group_dict.get(user_id, {}), que_raw, '')
-        ans = await adjust_img(bot,ans)
+        ans = await match_ans(group_dict['all'], que_raw, ans) if not ans else ans
+        ans = await adjust_img(bot, ans)
         await delete_old_img(group_id, user_id, ans)
-    ans_raw = await adjust_img(bot,ans_raw, save = True)
+    except:
+        pass
+    ans_raw = await adjust_img(bot, ans_raw, save=True)
     ans = ans_raw.split('#')
     ans = await adjust_list(ans, '#')
     if group_id == 'all':
@@ -38,8 +38,9 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) 
         db[group_id] = group_dict
     return '好的我记住了'
 
+
 # 显示问答
-async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool=True) -> str:
+async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool = True) -> str:
     db = await get_database()
     search_str = html.unescape(search_str)
     msg = f'查询 “{search_str}” 相关的结果如下：\n' if (search_str and is_self) else ''
@@ -58,10 +59,11 @@ async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool=T
         msg += f'{msg_head}{subject}设置的问题有：\n' + ' | '.join(que_list)
     return msg
 
+
 # 删除问答
-async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool=True) -> str:
+async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool = True) -> str:
     db = await get_database()
-    try :
+    try:
         await delete_img(unque_str)
     except:
         pass
@@ -77,14 +79,15 @@ async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool=Tru
     else:
         ans = group_dict['all'].get(unque_str)
         group_dict['all'].pop(unque_str)
-    try :
+    try:
         await delete_img(ans)
     except:
         pass
     ans_str = '#'.join(ans)
     db[group_id] = group_dict
     msg_head = '' if is_self else f'\n群{group_id}中'
-    return f'{msg_head}我不再回答 “{ans_str}” 了'#想了想，这个地方暂时不改，容易头疼
+    return f'{msg_head}我不再回答 “{ans_str}” 了'  # 想了想，这个地方暂时不改，容易头疼
+
 
 # 复制问答
 async def copy_que(group_1, group_2):
