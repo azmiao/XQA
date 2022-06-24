@@ -1,6 +1,7 @@
 import html
 from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img
 
+
 # 保存问答
 async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, gid: str) -> str:
     db = await get_database()
@@ -8,13 +9,13 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, 
     que_raw = html.unescape(que_raw)
     ans_raw = html.unescape(ans_raw)
     # 新问题就调整并下载图片
-    que_raw = await adjust_img(bot, que_raw, save = True)
+    que_raw = await adjust_img(bot, que_raw, save=True)
     # 已有问答再次设置的话，就先删除旧图片
     gid = gid if group_id == 'all' else group_id
     ans_old = db.get(gid, {}).get(user_id, {}).get(que_raw, [])
     if ans_old: _ = await delete_img(ans_old)
     # 保存新的回答
-    ans_raw = await adjust_img(bot, ans_raw, save = True)
+    ans_raw = await adjust_img(bot, ans_raw, save=True)
     ans = ans_raw.split('#')
     ans = await adjust_list(ans, '#')
     if group_id == 'all':
@@ -35,8 +36,9 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, 
         db[group_id] = group_dict
     return '好的我记住了'
 
+
 # 显示问答
-async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool=True) -> str:
+async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool = True) -> str:
     db = await get_database()
     search_str = html.unescape(search_str)
     msg = f'查询 “{search_str}” 相关的结果如下：\n' if (search_str and is_self) else ''
@@ -55,8 +57,9 @@ async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool=T
         msg += f'{msg_head}{subject}设置的问题有：\n' + ' | '.join(que_list)
     return msg
 
+
 # 删除问答
-async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool=True) -> str:
+async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool = True) -> str:
     db = await get_database()
     unque_str = html.unescape(unque_str)
     group_dict = db.get(group_id, {'all': {}})
@@ -76,6 +79,7 @@ async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool=Tru
     db[group_id] = group_dict
     msg_head = '' if is_self else f'\n群{group_id}中'
     return f'{msg_head}我不再回答 “{ans_str}” 了'
+
 
 # 复制问答
 async def copy_que(group_1, group_2):
