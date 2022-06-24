@@ -167,3 +167,4 @@ def rm_base64(refile: str):
     file = open(refile, 'w', encoding='UTF-8')
     for i in lineList:
         file.write(i)
+    file.close()
