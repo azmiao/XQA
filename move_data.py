@@ -53,6 +53,7 @@ async def create_info():
                         shutil.copyfile(img_path, str(pmd5.hexdigest()) + '.image')
                         msg += f"[CQ:image,file=file:///{str(pmd5.hexdigest()) + '.image'}]".replace('\\', '/')
                     except:
+                        rm_base64(message['data']['file'])
                         i = open(message['data']['file'], "rb")
                         fd = i.read()
                         pmd5 = hashlib.md5(fd)
@@ -154,3 +155,15 @@ async def format_info(bot):
     for group_id in list(config.keys()):
         db[group_id] = config[group_id]
     return '格式化完成！请自行在hoshino/log/critical.log检查格式化结果，若有提示图片过期的情况请自行删除他们或重新设置问题覆盖他们。'
+
+
+def rm_base64(refile: str):
+    lineList = []
+    with open(refile, 'r', encoding='UTF-8') as file:
+        line = file.readline()
+        line2 = line.replace('base64://', '')
+        lineList.append(line2)
+    file.close()
+    file = open(refile, 'w', encoding='UTF-8')
+    for i in lineList:
+        file.write(i)

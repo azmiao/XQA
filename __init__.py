@@ -40,12 +40,14 @@ bot就会回复：抱着优衣酱可爱的自己
 [看看我问Y] 搜索自己设置的问题，Y为搜索内容
 '''.strip()
 
-sv = Service('XQA', enable_on_default = True)
+sv = Service('XQA', enable_on_default=True)
+
 
 # 帮助界面
 @sv.on_fullmatch('问答帮助')
 async def help(bot, ev):
     await bot.send(ev, sv_help)
+
 
 # 设置问答，支持正则表达式和回流
 @sv.on_message('group')
@@ -68,6 +70,7 @@ async def set_question(bot, ev):
     msg = await set_que(bot, group_id, user_id, que_raw, ans_raw, str(ev.group_id))
     await bot.send(ev, msg)
 
+
 # 看问答，支持模糊搜索
 @sv.on_rex(r'^看看(有人|我|全群)问([\s\S]*)$')
 async def show_question(bot, ev):
@@ -88,6 +91,7 @@ async def show_question(bot, ev):
     msg = await show_que(group_id, user_id, search_str)
     await bot.send(ev, msg)
 
+
 # 搜索某个成员的问题和回答，限群管理员
 @sv.on_prefix('查问答')
 async def search_question(bot, ev):
@@ -105,6 +109,7 @@ async def search_question(bot, ev):
     msg = f'QQ({user_id}) 的查询结果：\n'
     msg += await show_que(group_id, user_id, search_str)
     await bot.send(ev, msg)
+
 
 # 不要回答，管理员可以@人删除回答
 @sv.on_message('group')
@@ -136,6 +141,7 @@ async def delete_question(bot, ev):
     msg = await del_que(group_id, user_id, unque_str)
     await bot.send(ev, msg)
 
+
 # 回复问答
 @sv.on_message('group')
 async def xqa(bot, ev):
@@ -150,6 +156,7 @@ async def xqa(bot, ev):
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans: await bot.send(ev, ans)
+
 
 # 复制问答
 @sv.on_prefix('复制问答from')
@@ -167,17 +174,20 @@ async def copy_question(bot, ev):
     msg = await copy_que(group_1, group_2)
     await bot.send(ev, msg)
 
+
 # 提取艾琳佬的eqa数据
 @sv.on_fullmatch('.xqa_extract_data')
 async def hahahaha(bot, ev):
     if not priv.check_priv(ev, priv.SUPERUSER): return
     await bot.send(ev, await get_dict())
 
+
 # 写入提取出的数据
 @sv.on_fullmatch('.xqa_write_data')
 async def xixixixi(bot, ev):
     if not priv.check_priv(ev, priv.SUPERUSER): return
     await bot.send(ev, await write_info())
+
 
 # 格式化数据
 @sv.on_fullmatch('.xqa_format_data')
