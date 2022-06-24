@@ -24,7 +24,7 @@ git pull
 
 ## 最近四条更新日志
 
-22-06-23    v1.2.0  支持下载图片，以防图片过期，更新请务必使用命令`.xqa_format_data`格式化一次，感谢[@morarity123](https://github.com/morarity123)
+22-06-24    v1.2.0  支持下载图片，以防图片过期，更新请务必使用命令`.xqa_format_data`格式化一次，感谢[@morarity123](https://github.com/morarity123)
 
 22-06-01    v1.1.1  修复图片CQ码存储问题，emmm正则表达式写错了2333
 

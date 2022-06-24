@@ -1,18 +1,17 @@
 '''
 作者：AZMIAO
-
 说明：该文件用于将艾琳佬的数据复制部分到本插件，请确保安装完依赖
 '''
 
 from sqlitedict import SqliteDict
-import os, shutil
+import os
 import json
 import re
 import shutil
 import base64
 import hashlib
 
-from hoshino import R, logger
+from hoshino import logger
 from .util import get_database, adjust_img, file_path
 
 
@@ -154,4 +153,4 @@ async def format_info(bot):
     # 写入格式化后的数据
     for group_id in list(config.keys()):
         db[group_id] = config[group_id]
-    return '格式化完成！请自行在hoshino/log/critical.log检查格式化结果，若有图片过期的情况请自行删除他们或重新设置问题覆盖他们。'
+    return '格式化完成！请自行在hoshino/log/critical.log检查格式化结果，若有提示图片过期的情况请自行删除他们或重新设置问题覆盖他们。'
