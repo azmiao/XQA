@@ -126,7 +126,7 @@ async def delete_question(bot, ev):
             await bot.finish(ev, f'删除全群设置的有人问必须带上删除内容')
         msg = f'全群删除问答 {unque_str} 的结果:'
         for group_id in group_list:
-            msg += await del_que(group_id, 'all', unque_str, False)
+            msg += await del_que(bot, group_id, 'all', unque_str, False)
         msg = '没有在任何群里找到该问题呢' if msg == f'全群删除问答 {unque_str} 的结果:' else msg
         await bot.send(ev, msg)
         return
@@ -137,8 +137,8 @@ async def delete_question(bot, ev):
         if priv.get_user_priv(ev) < 21:
             await bot.finish(ev, f'删除他人问答仅限群管理员呢')
     # 仅调整不要回答的问题中的图片
-    unque_str = await adjust_img(bot, unque_str)
-    msg = await del_que(group_id, user_id, unque_str)
+    unque_str = await adjust_img(bot, unque_str, is_ans=True)
+    msg = await del_que(bot, group_id, user_id, unque_str)
     await bot.send(ev, msg)
 
 
