@@ -89,7 +89,7 @@ async def adjust_list(list_tmp: list, char: str) -> list:
 
 
 # 下载以及分类图片
-async def doing_img(bot, img: str, is_ans: bool, save: bool):
+async def doing_img(bot, img: str, is_ans: bool, save: bool) -> str:
     img_path = os.path.join(file_path, 'img/')
     if save:
         try:
@@ -106,12 +106,23 @@ async def doing_img(bot, img: str, is_ans: bool, save: bool):
     return img
 
 
+async def remove_path(file: str) -> str:
+    try:
+        file = file.replace('file:///', '')
+        img_path = os.path.split(file)[0]
+        file = file.replace(str(img_path), '')
+        return file.replace('/', '')
+    finally:
+        return file
+
+
 # 进行图片处理
 async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:  # 应该可以用了
     image_list = re.findall(r'(\[CQ:image,file=(\S+?)\,url=(\S+?)\,subType\S*?\])', str_raw)
     old_image_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image])', str_raw)
     if old_image_list:  # 尝试缓存之前的图片
         for image in old_image_list:
+            image[1] = remove_path(image[1])
             img = doing_img(bot, image[1] + '.image', is_ans, save)
             str_raw = str_raw.replace(image[0], f'[CQ:image,file={img}]')
     if image_list:
