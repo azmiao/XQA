@@ -155,7 +155,9 @@ async def xqa(bot, ev):
     ans = await match_ans(group_dict.get(user_id, {}), message, '')
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
-    if ans: await bot.send(ev, ans)
+    if ans:
+        ans = await adjust_img(bot, ans, is_ans=True, save=True)
+        await bot.send(ev, ans)
 
 
 # 复制问答
