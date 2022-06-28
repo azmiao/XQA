@@ -86,7 +86,7 @@ async def adjust_list(list_tmp: list, char: str) -> list:
 
 
 # 下载以及分类图片
-async def doing_img(bot, img: str, is_ans: bool, save: bool) -> str:
+async def doing_img(bot, img: str, is_ans: bool = False, save: bool = False) -> str:
     img_path = os.path.join(file_path, 'img/')
     if save:
         try:
@@ -145,17 +145,14 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
 
 async def delete_img(list_raw: list) -> list:
     list_end = []
-    print(str(list_raw))
     for str_raw in list_raw:
         img_list = re.findall(r'(\[CQ:image,file=file:///(.+?\.image)\])', str_raw)
         for img in img_list:
             file = img[1]
-            print(file)
             try:
                 file = os.path.split(file)[-1]
             except:
                 pass
-            print(os.path.abspath(file_path + '/img/' + img[1]))
             try:
                 os.remove(os.path.abspath(file_path + '/img/' + img[1]) + '.image')
                 logger.info(f'XQA: 已删除图片{file}')
@@ -164,5 +161,4 @@ async def delete_img(list_raw: list) -> list:
         # 返回值换回缓存显示
         str_raw = str_raw.replace('file:///'+str(os.path.abspath(file_path + '/img'))+'\\', '')
         list_end.append(str_raw)
-        print(list_end)
     return list_end

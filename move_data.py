@@ -59,7 +59,6 @@ async def create_info():
                         pmd5 = hashlib.md5(fd)
                         imgdata = base64.b64decode(fd)
                         file = open(file_path + '/img/' + str(pmd5.hexdigest()) + '.image', 'wb')
-                        # file = open(str(pmd5.hexdigest()) + '.image', 'wb')
                         file.write(imgdata)
                         file.close()
                         msg += f"[CQ:image,file={str(pmd5.hexdigest()) + '.image'}]".replace('\\', '/')

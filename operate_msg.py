@@ -73,13 +73,11 @@ async def del_que(bot, group_id: str, user_id: str, unque_str: str, is_self: boo
     else:
         ans = group_dict['all'].get(unque_str)
         group_dict['all'].pop(unque_str)
-    # 判断设置过该问题后，再删除问答中的图片缓存
-    # back_ans = await delete_img(ans)
-    ans_str = '#'.join(ans)
+    ans_str = '#'.join(ans)  # 调整图片
     ans_str = await adjust_img(bot, ans_str, is_ans=True)
     db[group_id] = group_dict
     msg_head = '' if is_self else f'\n群{group_id}中'
-    return f'{msg_head}我不再回答 “{ans_str}” 了', ans
+    return f'{msg_head}我不再回答 “{ans_str}” 了', ans  # 返回输出文件以及需要删除的图片
 
 
 # 复制问答
