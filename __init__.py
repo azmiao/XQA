@@ -9,7 +9,7 @@ XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的
 import re
 import html
 from .operate_msg import set_que, show_que, del_que, copy_que
-from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list
+from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list, delete_img
 from .move_data import get_dict, write_info, format_info
 
 from hoshino import Service, priv
@@ -126,7 +126,8 @@ async def delete_question(bot, ev):
             await bot.finish(ev, f'删除全群设置的有人问必须带上删除内容')
         msg = f'全群删除问答 {unque_str} 的结果:'
         for group_id in group_list:
-            msg += await del_que(group_id, 'all', unque_str, False)
+            m, _ = await del_que(bot, group_id, 'all', unque_str, False)
+            msg += m
         msg = '没有在任何群里找到该问题呢' if msg == f'全群删除问答 {unque_str} 的结果:' else msg
         await bot.send(ev, msg)
         return
@@ -137,9 +138,10 @@ async def delete_question(bot, ev):
         if priv.get_user_priv(ev) < 21:
             await bot.finish(ev, f'删除他人问答仅限群管理员呢')
     # 仅调整不要回答的问题中的图片
-    unque_str = await adjust_img(bot, unque_str)
-    msg = await del_que(group_id, user_id, unque_str)
+    unque_str = await adjust_img(bot, unque_str, is_ans=True)
+    msg, del_image = await del_que(bot, group_id, user_id, unque_str)
     await bot.send(ev, msg)
+    await delete_img(del_image)
 
 
 # 回复问答
@@ -155,7 +157,9 @@ async def xqa(bot, ev):
     ans = await match_ans(group_dict.get(user_id, {}), message, '')
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
-    if ans: await bot.send(ev, ans)
+    if ans:
+        ans = await adjust_img(bot, ans, is_ans=True, save=True)
+        await bot.send(ev, ans)
 
 
 # 复制问答

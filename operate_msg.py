@@ -59,13 +59,13 @@ async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool =
 
 
 # 删除问答
-async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool = True) -> str:
+async def del_que(bot, group_id: str, user_id: str, unque_str: str, is_self: bool = True) -> tuple:
     db = await get_database()
     unque_str = html.unescape(unque_str)
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
     if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):
-        return '没有设置过该问题呢' if is_self else ''
+        return '没有设置过该问题呢' if is_self else '', ''
     elif user_dict.get(unque_str):
         ans = user_dict.get(unque_str)
         user_dict.pop(unque_str)
@@ -73,12 +73,11 @@ async def del_que(group_id: str, user_id: str, unque_str: str, is_self: bool = T
     else:
         ans = group_dict['all'].get(unque_str)
         group_dict['all'].pop(unque_str)
-    # 判断设置过该问题后，再删除问答中的图片缓存
-    back_ans = await delete_img(ans)
-    ans_str = '#'.join(back_ans)
+    ans_str = '#'.join(ans)  # 调整图片
+    ans_str = await adjust_img(bot, ans_str, is_ans=True)
     db[group_id] = group_dict
     msg_head = '' if is_self else f'\n群{group_id}中'
-    return f'{msg_head}我不再回答 “{ans_str}” 了'
+    return f'{msg_head}我不再回答 “{ans_str}” 了', ans  # 返回输出文件以及需要删除的图片
 
 
 # 复制问答
