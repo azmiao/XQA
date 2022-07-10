@@ -105,20 +105,15 @@ async def doing_img(bot, img: str, is_ans: bool = False, save: bool = False) -> 
 
 
 # 进行图片处理
-async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:  # 应该可以用了
-    image_list = re.findall(r'(\[CQ:image,file=(\S+?)\,url=(\S+?)\,subType\S*?\])', str_raw)
-    old_image_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image])', str_raw)
-    if old_image_list:  # 尝试缓存之前的图片
-        for image in old_image_list:
+async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:
+    image_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image(\S+?)?])', str_raw)
+    if image_list:
+        for image in image_list:
             try:
                 img = os.path.split(image[1])[-1]
             except:
                 pass
             img = await doing_img(bot, img + '.image', is_ans, save)
-            str_raw = str_raw.replace(image[0], f'[CQ:image,file={img}]')
-    if image_list:
-        for image in image_list:
-            img = await doing_img(bot, image[1], is_ans, save)
             str_raw = str_raw.replace(image[0], f'[CQ:image,file={img}]')
     return str_raw
 
@@ -142,11 +137,10 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
             continue
     return ans
 
-
+# 删啊删
 async def delete_img(list_raw: list) -> list:
-    list_end = []
     for str_raw in list_raw:
-        img_list = re.findall(r'(\[CQ:image,file=file:///(.+?\.image)\])', str_raw)
+        img_list = re.findall(r'(\[CQ:image,file=(.+?\.image)\])', str_raw)
         for img in img_list:
             file = img[1]
             try:
@@ -154,11 +148,7 @@ async def delete_img(list_raw: list) -> list:
             except:
                 pass
             try:
-                os.remove(os.path.abspath(file_path + '/img/' + img[1]) + '.image')
+                os.remove(os.path.abspath(file_path + '/img/' + img[1]))
                 logger.info(f'XQA: 已删除图片{file}')
             except:
                 logger.info(f'XQA: 图片{file}不存在，无需删除')
-        # 返回值换回缓存显示
-        str_raw = str_raw.replace('file:///'+str(os.path.abspath(file_path + '/img'))+'\\', '')
-        list_end.append(str_raw)
-    return list_end
