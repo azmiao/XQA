@@ -106,7 +106,7 @@ async def doing_img(bot, img: str, is_ans: bool = False, save: bool = False) -> 
 
 # 进行图片处理
 async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:
-    image_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image(\S+?)?])', str_raw)
+    image_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image(\S*?)])', str_raw)
     if image_list:
         for image in image_list:
             try:
