@@ -52,11 +52,11 @@ bot就会回复：抱着优衣酱可爱的自己
 [看看我问Y] 搜索自己设置的问题，Y为搜索内容
 '''.strip()
 
-sv = Service('XQA', enable_on_default=True)
+sv = Service('XQA', enable_on_default=True, help_= sv_help)
 
 
 # 帮助界面
-@sv.on_fullmatch('问答帮助', help_= sv_help)
+@sv.on_fullmatch('问答帮助')
 async def help(bot, ev):
     await bot.send(ev, sv_help)
 
