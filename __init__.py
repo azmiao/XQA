@@ -44,7 +44,7 @@ sv = Service('XQA', enable_on_default=True)
 
 
 # 帮助界面
-@sv.on_fullmatch('问答帮助')
+@sv.on_fullmatch('问答帮助', help_= sv_help)
 async def help(bot, ev):
     await bot.send(ev, sv_help)
 
