@@ -4,7 +4,7 @@ import os
 import re
 import random
 import urllib
-from hoshino import R, logger
+from hoshino import R, logger, util
 
 # 储存数据位置（初次使用后不可改动）
 file_path = R.img('xqa').path  # 数据在res文件夹里
@@ -106,15 +106,22 @@ async def doing_img(bot, img: str, is_ans: bool = False, save: bool = False) -> 
 
 # 进行图片处理
 async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:
-    image_list = re.findall(r'(\[CQ:image,file=(\S+?)\.image(\S*?)])', str_raw)
-    if image_list:
-        for image in image_list:
-            try:
-                img = os.path.split(image[1])[-1]
-            except:
-                pass
-            img = await doing_img(bot, img + '.image', is_ans, save)
-            str_raw = str_raw.replace(image[0], f'[CQ:image,file={img}]')
+    flit_msg = util.filt_message(str_raw) # 整个消息匹配敏感词
+    cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)=(\S+?)])', str_raw) # 找出其中所有的CQ码
+    # 对每个CQ码元组进行操作
+    for cqcode in cq_list:
+        flit_cq = util.filt_message(cqcode[0]) # 对当前的CQ码匹配敏感词
+        raw_body = cqcode[3].split(',')[0].split('.image')[0].split('/')[-1].split('\\')[-1] # 获取等号后面的东西，并排除目录
+        if cqcode[1] == 'image':
+            # 对图片单独保存图片，并修改图片路径为真实路径
+            raw_body = raw_body if '.' in raw_body else raw_body + '.image'
+            raw_body = await doing_img(bot, raw_body, is_ans, save)
+        if not save:
+            # 如果是回答的时候，就将 匹配过的消息 中的 匹配过的CQ码 替换成未匹配的
+            str_raw = flit_msg.replace(flit_cq, f'[CQ:{cqcode[1]},{cqcode[2]}={raw_body}]')
+        else:
+            # 如果是保存问答的时候，就只替换图片的路径，其他CQ码的替换相当于没变
+            str_raw = str_raw.replace(cqcode[0], f'[CQ:{cqcode[1]},{cqcode[2]}={raw_body}]')
     return str_raw
 
 
