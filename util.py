@@ -116,13 +116,13 @@ async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False
             # 对图片单独保存图片，并修改图片路径为真实路径
             raw_body = raw_body if '.' in raw_body else raw_body + '.image'
             raw_body = await doing_img(bot, raw_body, is_ans, save)
-        if not save:
+        if is_ans:
             # 如果是回答的时候，就将 匹配过的消息 中的 匹配过的CQ码 替换成未匹配的
-            str_raw = flit_msg.replace(flit_cq, f'[CQ:{cqcode[1]},{cqcode[2]}={raw_body}]')
+            flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cqcode[1]},{cqcode[2]}={raw_body}]')
         else:
             # 如果是保存问答的时候，就只替换图片的路径，其他CQ码的替换相当于没变
             str_raw = str_raw.replace(cqcode[0], f'[CQ:{cqcode[1]},{cqcode[2]}={raw_body}]')
-    return str_raw
+    return str_raw if not is_ans else flit_msg
 
 
 # 匹配消息
