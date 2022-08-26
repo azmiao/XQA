@@ -5,11 +5,15 @@ import re
 import random
 import urllib
 from hoshino import R, logger, util
+from .textfilter.filter import DFAFilter
 
 # 储存数据位置（初次使用后不可改动）
 file_path = R.img('xqa').path  # 数据在res文件夹里
 # file_path = os.path.dirname(__file__)  # 数据在插件文件夹里
 
+# 是否使用星乃自带的严格词库（可随时改动，重启生效）
+# use_strict = True     #使用星乃自带敏感词库
+use_strict = False  #使用XQA自带敏感词库
 
 # 判断是否在群里
 async def judge_ismember(bot, group_id: str, user_id: str) -> bool:
@@ -106,11 +110,11 @@ async def doing_img(bot, img: str, is_ans: bool = False, save: bool = False) -> 
 
 # 进行图片处理
 async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:
-    flit_msg = util.filt_message(str_raw) # 整个消息匹配敏感词
+    flit_msg = beautiful(str_raw) # 整个消息匹配敏感词
     cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)=(\S+?)])', str_raw) # 找出其中所有的CQ码
     # 对每个CQ码元组进行操作
     for cqcode in cq_list:
-        flit_cq = util.filt_message(cqcode[0]) # 对当前的CQ码匹配敏感词
+        flit_cq = beautiful(cqcode[0]) # 对当前的CQ码匹配敏感词
         raw_body = cqcode[3].split(',')[0].split('.image')[0].split('/')[-1].split('\\')[-1] # 获取等号后面的东西，并排除目录
         if cqcode[1] == 'image':
             # 对图片单独保存图片，并修改图片路径为真实路径
@@ -144,6 +148,7 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
             continue
     return ans
 
+
 # 删啊删
 async def delete_img(list_raw: list) -> list:
     for str_raw in list_raw:
@@ -159,3 +164,27 @@ async def delete_img(list_raw: list) -> list:
                 logger.info(f'XQA: 已删除图片{file}')
             except:
                 logger.info(f'XQA: 图片{file}不存在，无需删除')
+
+
+# 和谐模块
+def beautifulworld(msg: str) -> str:
+    w = ''
+    infolist = msg.split('[')
+    for i in infolist:
+        if i:
+            try:
+                w = w + '[' + i.split(']')[0] + ']' + beautiful(i.split(']')[1])
+            except:
+                w = w + beautiful(i)
+    return w
+
+
+# 切换和谐词库
+def beautiful(msg: str, strict: bool = use_strict) -> str:
+    beautiful_message = DFAFilter()
+    beautiful_message.parse(os.path.join(os.path.dirname(__file__), 'textfilter/sensitive_words.txt'))
+    if strict:
+        msg = util.filt_message(msg)
+    else:
+        msg = beautiful_message.filter(msg)
+    return msg

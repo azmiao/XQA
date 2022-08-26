@@ -1,13 +1,14 @@
 '''
 作者：AZMIAO
 
-版本：1.3.0
+版本：1.3.1
 
 XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
 '''
 
 import re
 import html
+import os
 from .operate_msg import set_que, show_que, del_que, copy_que
 from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list, delete_img
 from .move_data import get_dict, write_info, format_info
@@ -52,7 +53,7 @@ bot就会回复：抱着优衣酱可爱的自己
 [看看我问Y] 搜索自己设置的问题，Y为搜索内容
 '''.strip()
 
-sv = Service('XQA', enable_on_default=True, help_= sv_help)
+sv = Service('XQA', enable_on_default=True, help_=sv_help)
 
 
 # 帮助界面
@@ -77,7 +78,8 @@ async def set_question(bot, ev):
         user_id = 'all'
     elif que_type == '全群':
         if priv.get_user_priv(ev) < 999:
-            await bot.finish(ev, f'全群问只能维护组设置呢')
+            await bot.send(ev, f'全群问只能维护组设置呢')
+            return
         group_id = 'all'
     msg = await set_que(bot, group_id, user_id, que_raw, ans_raw, str(ev.group_id))
     await bot.send(ev, msg)
@@ -189,6 +191,37 @@ async def copy_question(bot, ev):
         await bot.finish(ev, f'群号输入错误！请检查')
     msg = await copy_que(group_1, group_2)
     await bot.send(ev, msg)
+
+# 添加敏感词
+@sv.on_prefix('XQA添加敏感词')
+async def add_sensitive_words(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.finish(ev, f'该功能限维护组')
+    info = ev.message.extract_plain_text().strip()
+    infolist = info.split(' ')
+    for i in infolist:
+        file = os.path.join(os.path.dirname(__file__), 'textfilter/sensitive_words.txt')
+        with open(file, 'a+', encoding='utf-8') as f:
+            f.write(i + '\n')
+    await bot.send(ev, f'添加完毕')
+
+
+# 删除敏感词
+@sv.on_prefix('XQA删除敏感词')
+async def del_sensitive_words(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.finish(ev, f'该功能限维护组')
+    info = ev.message.extract_plain_text().strip()
+    infolist = info.split(' ')
+    for i in infolist:
+        file = os.path.join(os.path.dirname(__file__), 'textfilter/sensitive_words.txt')
+        with open(file, "r", encoding='utf-8') as f:
+            lines = f.readlines()
+        with open(file, "w", encoding='utf-8') as f:
+            for line in lines:
+                if line.strip("\n") != i:
+                    f.write(line)
+    await bot.send(ev, f'删除完毕')
 
 
 # 提取艾琳佬的eqa数据
