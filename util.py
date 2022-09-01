@@ -135,7 +135,7 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
     list_tmp.reverse()
     # 优先完全匹配
     if message in list_tmp:
-        return random.choice(info[que])
+        return random.choice(info[message])
     # 其次正则匹配
     for que in list_tmp:
         try:
