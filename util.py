@@ -133,12 +133,11 @@ async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False
 async def match_ans(info: dict, message: str, ans: str) -> str:
     list_tmp = list(info.keys())
     list_tmp.reverse()
+    # 优先完全匹配
+    if message in list_tmp:
+        return random.choice(info[que])
+    # 其次正则匹配
     for que in list_tmp:
-        # 优先完全匹配
-        if que == message:
-            ans = random.choice(info[que])
-            break
-        # 其次正则匹配
         try:
             if re.match(que + '$', message):
                 ans = await replace_message(re.match(que + '$', message), info, que)
