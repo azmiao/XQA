@@ -153,7 +153,7 @@ async def delete_question(bot, ev):
             await bot.finish(ev, f'删除他人问答仅限群管理员呢')
     # 仅调整不要回答的问题中的图片
     unque_str = await adjust_img(bot, unque_str)
-    msg, del_image = await del_que(bot, group_id, user_id, unque_str)
+    msg, del_image = await del_que(bot, group_id, user_id, unque_str, True, priv.get_user_priv(ev) < 21)
     await bot.send(ev, msg)
     await delete_img(del_image)
 

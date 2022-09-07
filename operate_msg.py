@@ -59,20 +59,32 @@ async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool =
 
 
 # 删除问答
-async def del_que(bot, group_id: str, user_id: str, unque_str: str, is_self: bool = True) -> tuple:
+async def del_que(bot, group_id: str, user_id: str, unque_str: str, is_singer_group: bool = True, is_self: bool = False) -> tuple:
     db = await get_database()
     unque_str = html.unescape(unque_str)
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
-    if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):
-        return '没有设置过该问题呢' if is_self else '', ''
-    elif user_dict.get(unque_str):
-        ans = user_dict.get(unque_str)
-        user_dict.pop(unque_str)
-        group_dict[user_id] = user_dict
+    # 删除我问
+    if is_self:
+        if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):
+            return '没有设置过该问题呢', ''
+        elif (not user_dict.get(unque_str)) and (group_dict['all'].get(unque_str)):
+            return '你没有权限删除有人问呢', ''
+        else:
+            ans = user_dict.get(unque_str)
+            user_dict.pop(unque_str)
+            group_dict[user_id] = user_dict
+    # 删除有人问
     else:
-        ans = group_dict['all'].get(unque_str)
-        group_dict['all'].pop(unque_str)
+        if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):
+            return '没有设置过该问题呢' if is_singer_group else '', ''
+        elif user_dict.get(unque_str):
+            ans = user_dict.get(unque_str)
+            user_dict.pop(unque_str)
+            group_dict[user_id] = user_dict
+        else:
+            ans = group_dict['all'].get(unque_str)
+            group_dict['all'].pop(unque_str)
     ans_str = '#'.join(ans)  # 调整图片
     ans_str = await adjust_img(bot, ans_str, is_ans=True)
     ans.append(unque_str)
