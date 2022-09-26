@@ -74,7 +74,7 @@ async def del_que(bot, group_id: str, user_id: str, unque_str: str, is_singer_gr
             ans = user_dict.get(unque_str)
             user_dict.pop(unque_str)
             group_dict[user_id] = user_dict
-    # 删除有人问
+    # 删除有人问和全群问
     else:
         if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):
             return '没有设置过该问题呢' if is_singer_group else '', ''
@@ -89,8 +89,7 @@ async def del_que(bot, group_id: str, user_id: str, unque_str: str, is_singer_gr
     ans_str = await adjust_img(bot, ans_str, is_ans=True)
     ans.append(unque_str)
     db[group_id] = group_dict
-    msg_head = '' if is_singer_group else f'\n群{group_id}中'
-    return f'{msg_head}我不再回答 “{ans_str}” 了', ans  # 返回输出文件以及需要删除的图片
+    return f'我不再回答 “{ans_str}” 了', ans  # 返回输出文件以及需要删除的图片
 
 
 # 复制问答

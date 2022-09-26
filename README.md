@@ -27,6 +27,8 @@ git pull
 
 ## 最近四条更新日志
 
+22-09-26    v1.3.3  全群不要回答的时候缩减显示长度，[issue #8](https://github.com/azmiao/XQA/issues/8)
+
 22-08-25    v1.3.2  修复普通人可以删除有人问的BUG~~呜呜，为什么现在才有人提醒我~~
 
 22-08-25    v1.3.1  默认接入[@morarity123](https://github.com/morarity123)的自定义词库，比星乃的宽容

@@ -1,7 +1,7 @@
 '''
 作者：AZMIAO
 
-版本：1.3.1
+版本：1.3.3
 
 XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
 '''
@@ -132,19 +132,27 @@ async def delete_question(bot, ev):
     if not unque_match: return
     user, is_all, unque_str = unque_match.group(1), unque_match.group(2), unque_match.group(3)
     group_id, user_id = str(ev.group_id), str(ev.user_id)
+    if not unque_str:
+        await bot.finish(ev, f'删除问答请带上删除内容哦')
+    # 全群问的删除
     if is_all:
         if priv.get_user_priv(ev) < 999:
             await bot.finish(ev, f'只有维护组可以删除所有群设置的有人问')
         group_list = await get_g_list(bot)
-        if not unque_str:
-            await bot.finish(ev, f'删除全群设置的有人问必须带上删除内容')
-        msg = f'全群删除问答 {unque_str} 的结果:'
+        msg_dict = {}
+        msg = f''
         for group_id in group_list:
             m, _ = await del_que(bot, group_id, 'all', unque_str, False)
-            msg += m
-        msg = '没有在任何群里找到该问题呢' if msg == f'全群删除问答 {unque_str} 的结果:' else msg
+            if m and not msg_dict.get(m): msg_dict[m] = []
+            if m: msg_dict[m].append(group_id)
+        for msg_tmp in list(msg_dict.keys()):
+            g_list = msg_dict[msg_tmp]
+            g_msg = ','.join(g_list)
+            msg += f'在群{g_msg}中' + msg_tmp
+        msg = '没有在任何群里找到该问题呢' if msg == f'' else msg
         await bot.send(ev, msg)
         return
+    # 有人问和我问的删除
     if user:
         user_id = str(re.findall(r'[0-9]+', user)[0])
         if not await judge_ismember(bot, group_id, user_id):
