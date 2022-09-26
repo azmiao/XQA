@@ -148,8 +148,8 @@ async def delete_question(bot, ev):
         for msg_tmp in list(msg_dict.keys()):
             g_list = msg_dict[msg_tmp]
             g_msg = ','.join(g_list)
-            msg += f'在群{g_msg}中' + msg_tmp
-        msg = '没有在任何群里找到该问题呢' if msg == f'' else msg
+            msg += f'\n在群{g_msg}中' + msg_tmp
+        msg = '没有在任何群里找到该问题呢' if msg == f'' else msg.strip()
         await bot.send(ev, msg)
         return
     # 有人问和我问的删除
