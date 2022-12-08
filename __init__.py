@@ -189,7 +189,12 @@ async def xqa(bot, ev):
 async def copy_question(bot, ev):
     if not priv.check_priv(ev, priv.SUPERUSER):
         await bot.finish(ev, f'该功能限维护组')
-    group_list = str(ev.message).split('to')
+    msg_list = str(ev.message).split('-')
+    try:
+        msg_0, msg_1 = str(msg_list[0]), str(msg_list[1])
+    except:
+        msg_0, msg_1 = str(msg_list[0]), ''
+    group_list = msg_0.split('to')
     try:
         group_1, group_2 = str(int(group_list[0])), str(int(group_list[1]))
     except:
@@ -197,7 +202,7 @@ async def copy_question(bot, ev):
     group_list = await get_g_list(bot)
     if (group_1 not in group_list) or (group_2 not in group_list):
         await bot.finish(ev, f'群号输入错误！请检查')
-    msg = await copy_que(group_1, group_2)
+    msg = await copy_que(group_1, group_2, msg_1)
     await bot.send(ev, msg)
 
 # 添加敏感词
