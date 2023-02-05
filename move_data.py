@@ -12,7 +12,7 @@ import base64
 import hashlib
 
 from hoshino import logger
-from .util import get_database, adjust_img, file_path
+from .util import get_database, adjust_img, FILE_PATH
 
 
 # 艾琳佬的数据库
@@ -25,7 +25,7 @@ async def read_db():
 # 创建格式化后的文件
 async def create_info():
     data = {}
-    with open(os.path.join(file_path, 'db_config.json'), 'r', encoding='UTF-8') as f:
+    with open(os.path.join(FILE_PATH, 'db_config.json'), 'r', encoding='UTF-8') as f:
         config = json.load(f)
     for question in list(config.keys()):
         # 同一个问题的问答列表 list
@@ -46,7 +46,7 @@ async def create_info():
                 elif message['type'] == 'image':
                     try:
                         img_name = re.search(r'file:///\S+\\(\S+\.\S+)', message['data']['file']).group(1)
-                        img_path = os.path.join(file_path, f'img/{img_name}')
+                        img_path = os.path.join(FILE_PATH, f'img/{img_name}')
                         i = open(os.path.abspath(img_path), "rb")
                         fd = i.read()
                         pmd5 = hashlib.md5(fd)
@@ -58,7 +58,7 @@ async def create_info():
                         fd = i.read()
                         pmd5 = hashlib.md5(fd)
                         imgdata = base64.b64decode(fd)
-                        file = open(file_path + '/img/' + str(pmd5.hexdigest()) + '.image', 'wb')
+                        file = open(FILE_PATH + '/img/' + str(pmd5.hexdigest()) + '.image', 'wb')
                         file.write(imgdata)
                         file.close()
                         msg += f"[CQ:image,file={str(pmd5.hexdigest()) + '.image'}]".replace('\\', '/')
@@ -72,18 +72,18 @@ async def create_info():
                 user_dict[question] = msg_list
                 group_dict[user_id] = user_dict
             data[group_id] = group_dict
-    with open(os.path.join(file_path, 'data_config.json'), 'w', encoding='UTF-8') as f:
+    with open(os.path.join(FILE_PATH, 'data_config.json'), 'w', encoding='UTF-8') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
 # 只读形式临时转存艾琳佬的数据库
 async def get_dict():
-    if not os.path.exists(file_path):
-        os.mkdir(file_path)
-    if not os.path.exists(os.path.join(file_path, 'data_config.json')):
+    if not os.path.exists(FILE_PATH):
+        os.mkdir(FILE_PATH)
+    if not os.path.exists(os.path.join(FILE_PATH, 'data_config.json')):
         db = await read_db()
         logger.info('临时数据文件不存在，因此开始转存艾琳佬的数据')
-        with open(os.path.join(file_path, 'db_config.json'), 'w', encoding='UTF-8') as f:
+        with open(os.path.join(FILE_PATH, 'db_config.json'), 'w', encoding='UTF-8') as f:
             json.dump(dict(db), f, indent=4, ensure_ascii=False)
         await create_info()
         return f'''
@@ -110,11 +110,11 @@ async def copydirs(from_file, to_file):
 async def write_info():
     if not os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'eqa/data/db.sqlite')):
         return 'eqa数据不存在，请确保之前使用过eqa且未移动其位置'
-    if not os.path.exists(os.path.join(file_path, 'db_config.json')):
+    if not os.path.exists(os.path.join(FILE_PATH, 'db_config.json')):
         return '临时数据文件不存在，请先使用命令：.xqa_extract_data'
     # 新建新的数据库
     db = await get_database()
-    with open(os.path.join(file_path, 'data_config.json'), 'r', encoding='UTF-8') as f:
+    with open(os.path.join(FILE_PATH, 'data_config.json'), 'r', encoding='UTF-8') as f:
         config = json.load(f)
     logger.info('创建本插件的数据库成功，开始迁移数据...')
     for group_id in list(config.keys()):
@@ -122,7 +122,7 @@ async def write_info():
     # 复制图片
     logger.info('开始复制图片')
     from_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), f'eqa/data/img')
-    await copydirs(from_file, os.path.join(file_path, f'img/'))
+    await copydirs(from_file, os.path.join(FILE_PATH, f'img/'))
     logger.info('复制完成，进程结束')
     return '数据复制完成，请自己检查确认是否正常'
 

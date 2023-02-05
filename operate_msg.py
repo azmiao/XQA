@@ -1,5 +1,6 @@
 import html
-from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img
+
+from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img, spilt_msg, SPLIT_MSG
 
 
 # 保存问答
@@ -37,13 +38,14 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, 
     return '好的我记住了'
 
 
-# 显示问答
-async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool = True) -> str:
+# 显示有人/我问 和 查其他人的问答
+async def show_que(group_id: str, user_id: str, search_str: str, msg_head: str) -> list:
     db = await get_database()
     search_str = html.unescape(search_str)
-    msg = f'查询 “{search_str}” 相关的结果如下：\n' if (search_str and is_self) else ''
-    msg_head = '本群中' if is_self else f'\n群{group_id}中'
-    subject = '管理员' if user_id == 'all' else '你'
+    # 对象
+    object = '管理员' if user_id == 'all' else '你'
+
+    # 查询问题列表
     if user_id == 'all':
         group_dict = db.get(group_id, {'all': {}})
         que_list = await get_search(list(group_dict['all'].keys()), search_str)
@@ -51,12 +53,33 @@ async def show_que(group_id: str, user_id: str, search_str: str, is_self: bool =
         group_dict = db.get(group_id, {'all': {}})
         user_dict = group_dict.get(user_id, {})
         que_list = await get_search(list(user_dict.keys()), search_str)
-    if not que_list:
-        msg += f'{msg_head}没有找到任何{subject}设置的问题呢' if is_self else ''
-    else:
-        msg += f'{msg_head}{subject}设置的问题有：\n' + ' | '.join(que_list)
-    return msg
 
+    # 获取消息列表
+    if not que_list:
+        result_list = [f'{msg_head}本群中没有找到任何{object}设置的问题呢']
+    else:
+        result_list = spilt_msg(que_list, f'{msg_head}{object}在群里设置的问题有：\n')
+    return result_list
+
+# 显示全群问答 | 单独做个函数
+async def show_all_group_que(search_str: str, group_list: list) -> list:
+    db = await get_database()
+    search_str = html.unescape(search_str)
+    result_list = []
+    init_msg = f'查询"{search_str}"相关的结果如下：\n' if search_str else ''
+
+    for group_id in group_list:
+        msg_head = f'\n群{group_id}中设置的问题有：\n' if group_list.index(group_id) != 0 \
+            else init_msg + f'\n群{group_id}中设置的问题有：\n'
+        group_dict = db.get(group_id, {'all': {}})
+        que_list = await get_search(list(group_dict['all'].keys()), search_str)
+        # 找不到就跳过
+        if not que_list: continue
+        result_list += spilt_msg(que_list, msg_head)
+
+    # 如果一个问题都没有 | 寄
+    if not result_list: result_list.append('没有查到任何结果呢')
+    return result_list
 
 # 删除问答
 async def del_que(bot, group_id: str, user_id: str, unque_str: str, is_singer_group: bool = True, is_self: bool = False) -> tuple:
