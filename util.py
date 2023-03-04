@@ -167,8 +167,12 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
     # 其次正则匹配
     for que in list_tmp:
         try:
-            if re.match(que + '$', message):
-                ans = await replace_message(re.match(que + '$', message), info, que)
+            cq_list = re.findall(r'\[(CQ:(\S+?),(\S+?)=(\S+?))\]', que) # 找出其中所有的CQ码
+            que_new = que
+            for cq_msg in cq_list:
+                que_new = que_new.replace(cq_msg[0], '\[' + cq_msg[1] + '\]')
+            if re.match(que_new + '$', message):
+                ans = await replace_message(re.match(que_new + '$', message), info, que)
                 break
         except re.error:
             # 如果que不是re.pattern的形式就跳过
