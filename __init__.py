@@ -165,13 +165,14 @@ async def delete_question(bot, ev):
         return
     # 有人问和我问的删除
     if user:
-        user_id = str(re.findall(r'[0-9]+', user)[0])
-        if priv.get_user_priv(ev) < 21:
+        user_id_at = str(re.findall(r'[0-9]+', user)[0])
+        if str(user_id_at) != str(ev.self_id) and priv.get_user_priv(ev) < 21:
             await bot.send(ev, f'删除他人问答仅限群管理员呢')
             return
-        if not await judge_ismember(bot, group_id, user_id):
+        if str(user_id_at) != str(ev.self_id) and not await judge_ismember(bot, group_id, user_id):
             await bot.send(ev, f'该成员{user_id}不在该群')
             return
+        user_id = user_id if str(user_id_at) == str(ev.self_id) else user_id_at
     # 仅调整不要回答的问题中的图片
     unque_str = await adjust_img(bot, unque_str)
     msg, del_image = await del_que(bot, group_id, user_id, unque_str, True, priv.get_user_priv(ev) < 21)
