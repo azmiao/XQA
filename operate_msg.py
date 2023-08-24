@@ -1,6 +1,6 @@
 import html
 
-from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img, spilt_msg, SPLIT_MSG
+from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img, spilt_msg
 
 
 # 保存问答
@@ -14,7 +14,8 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, 
     # 已有问答再次设置的话，就先删除旧图片
     gid = gid if group_id == 'all' else group_id
     ans_old = db.get(gid, {}).get(user_id, {}).get(que_raw, [])
-    if ans_old: await delete_img(ans_old)
+    if ans_old:
+        await delete_img(ans_old)
     # 保存新的回答
     ans_raw = await adjust_img(bot, ans_raw, save=True)
     ans = ans_raw.split('#')
@@ -43,7 +44,7 @@ async def show_que(group_id: str, user_id: str, search_str: str, msg_head: str) 
     db = await get_database()
     search_str = html.unescape(search_str)
     # 对象
-    object = '管理员' if user_id == 'all' else '你'
+    user_object = '管理员' if user_id == 'all' else '你'
 
     # 查询问题列表
     if user_id == 'all':
@@ -56,10 +57,11 @@ async def show_que(group_id: str, user_id: str, search_str: str, msg_head: str) 
 
     # 获取消息列表
     if not que_list:
-        result_list = [f'{msg_head}本群中没有找到任何{object}设置的问题呢']
+        result_list = [f'{msg_head}本群中没有找到任何{user_object}设置的问题呢']
     else:
-        result_list = spilt_msg(que_list, f'{msg_head}{object}在群里设置的问题有：\n')
+        result_list = spilt_msg(que_list, f'{msg_head}{user_object}在群里设置的问题有：\n')
     return result_list
+
 
 # 显示全群问答 | 单独做个函数
 async def show_all_group_que(search_str: str, group_list: list) -> list:
@@ -74,43 +76,47 @@ async def show_all_group_que(search_str: str, group_list: list) -> list:
         group_dict = db.get(group_id, {'all': {}})
         que_list = await get_search(list(group_dict['all'].keys()), search_str)
         # 找不到就跳过
-        if not que_list: continue
+        if not que_list:
+            continue
         result_list += spilt_msg(que_list, msg_head)
 
     # 如果一个问题都没有 | 寄
-    if not result_list: result_list.append('没有查到任何结果呢')
+    if not result_list:
+        result_list.append('没有查到任何结果呢')
     return result_list
 
+
 # 删除问答
-async def del_que(bot, group_id: str, user_id: str, unque_str: str, is_singer_group: bool = True, is_self: bool = False) -> tuple:
+async def del_que(bot, group_id: str, user_id: str, no_que_str: str, is_singer_group: bool = True,
+                  is_self: bool = False) -> tuple:
     db = await get_database()
-    unque_str = html.unescape(unque_str)
+    no_que_str = html.unescape(no_que_str)
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
     # 删除我问
     if is_self:
-        if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):
+        if (not user_dict.get(no_que_str)) and (not group_dict['all'].get(no_que_str)):
             return '没有设置过该问题呢', ''
-        elif (not user_dict.get(unque_str)) and (group_dict['all'].get(unque_str)):
+        elif (not user_dict.get(no_que_str)) and (group_dict['all'].get(no_que_str)):
             return '你没有权限删除有人问呢', ''
         else:
-            ans = user_dict.get(unque_str)
-            user_dict.pop(unque_str)
+            ans = user_dict.get(no_que_str)
+            user_dict.pop(no_que_str)
             group_dict[user_id] = user_dict
     # 删除有人问和全群问
     else:
-        if (not user_dict.get(unque_str)) and (not group_dict['all'].get(unque_str)):
+        if (not user_dict.get(no_que_str)) and (not group_dict['all'].get(no_que_str)):
             return '没有设置过该问题呢' if is_singer_group else '', ''
-        elif user_dict.get(unque_str):
-            ans = user_dict.get(unque_str)
-            user_dict.pop(unque_str)
+        elif user_dict.get(no_que_str):
+            ans = user_dict.get(no_que_str)
+            user_dict.pop(no_que_str)
             group_dict[user_id] = user_dict
         else:
-            ans = group_dict['all'].get(unque_str)
-            group_dict['all'].pop(unque_str)
+            ans = group_dict['all'].get(no_que_str)
+            group_dict['all'].pop(no_que_str)
     ans_str = '#'.join(ans)  # 调整图片
     ans_str = await adjust_img(bot, ans_str, is_ans=True)
-    ans.append(unque_str)
+    ans.append(no_que_str)
     db[group_id] = group_dict
     return f'我不再回答 “{ans_str}” 了', ans  # 返回输出文件以及需要删除的图片
 

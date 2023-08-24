@@ -1,21 +1,21 @@
-'''
+"""
 作者：AZMIAO
 
 版本：1.4.0
 
 XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
-'''
+"""
 
-import re
 import html
 import os
-
-from .operate_msg import set_que, show_que, show_all_group_que, del_que, copy_que
-from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list, \
-    delete_img, send_result_msg, MSG_LENTH, IS_JUDGE_LENTH
-from .move_data import get_dict, write_info, format_info
+import re
 
 from hoshino import Service, priv
+
+from .move_data import get_dict, write_info, format_info
+from .operate_msg import set_que, show_que, show_all_group_que, del_que, copy_que
+from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list, \
+    delete_img, send_result_msg, MSG_LENGTH, IS_JUDGE_LENGTH
 
 sv_help = '''
 =====注意=====
@@ -60,7 +60,7 @@ sv = Service('XQA', enable_on_default=True, help_=sv_help)
 
 # 帮助界面
 @sv.on_fullmatch('问答帮助')
-async def help(bot, ev):
+async def get_help(bot, ev):
     await bot.send(ev, sv_help)
 
 
@@ -68,13 +68,15 @@ async def help(bot, ev):
 @sv.on_message('group')
 async def set_question(bot, ev):
     results = re.match(r'^(全群|有人|我)问([\s\S]*)你答([\s\S]*)$', str(ev.message))
-    if not results: return
+    if not results:
+        return
     que_type, que_raw, ans_raw = results.group(1), results.group(2), results.group(3)
     if (not que_raw) or (not ans_raw):
         await bot.send(ev, f'发送“{que_type}问◯◯你答◯◯”我才记得住~')
         return
-    if IS_JUDGE_LENTH and len(ans_raw) > MSG_LENTH:
-        await bot.send(ev, f'回答的长度超过最大字符限制，限制{MSG_LENTH}字符，包括符号和图片转码，您设置的回答字符长度为[{len(ans_raw)}]')
+    if IS_JUDGE_LENGTH and len(ans_raw) > MSG_LENGTH:
+        await bot.send(ev,
+                       f'回答的长度超过最大字符限制，限制{MSG_LENGTH}字符，包括符号和图片转码，您设置的回答字符长度为[{len(ans_raw)}]')
         return
     group_id, user_id = str(ev.group_id), str(ev.user_id)
 
@@ -88,7 +90,7 @@ async def set_question(bot, ev):
             await bot.send(ev, f'全群问只能维护组设置呢')
             return
         group_id = 'all'
-    
+
     msg = await set_que(bot, group_id, user_id, que_raw, ans_raw, str(ev.group_id))
     await bot.send(ev, msg)
 
@@ -115,7 +117,7 @@ async def search_question(bot, ev):
     if priv.get_user_priv(ev) < 21:
         await bot.send(ev, f'搜索某个成员的问答只能群管理操作呢。个人查询问答请使用“看看我问”+搜索内容')
         return
-    search_match = re.match(r'\[CQ:at,qq=([0-9]+)\] ?(\S*)', str(ev.message))
+    search_match = re.match(r'\[CQ:at,qq=([0-9]+)] ?(\S*)', str(ev.message))
     try:
         user_id, search_str = search_match.group(1), search_match.group(2)
     except:
@@ -137,11 +139,12 @@ async def search_question(bot, ev):
 # 不要回答，管理员可以@人删除回答
 @sv.on_message('group')
 async def delete_question(bot, ev):
-    unque_match = re.match(r'^(\[CQ:at,qq=[0-9]+\])? ?(全群)?不要回答([\s\S]*)$', str(ev.message))
-    if not unque_match: return
-    user, is_all, unque_str = unque_match.group(1), unque_match.group(2), unque_match.group(3)
+    no_que_match = re.match(r'^(\[CQ:at,qq=[0-9]+])? ?(全群)?不要回答([\s\S]*)$', str(ev.message))
+    if not no_que_match:
+        return
+    user, is_all, no_que_str = no_que_match.group(1), no_que_match.group(2), no_que_match.group(3)
     group_id, user_id = str(ev.group_id), str(ev.user_id)
-    if not unque_str:
+    if not no_que_str:
         await bot.send(ev, f'删除问答请带上删除内容哦')
         return
     # 全群问的删除
@@ -153,9 +156,11 @@ async def delete_question(bot, ev):
         msg_dict = {}
         msg = f''
         for group_id in group_list:
-            m, _ = await del_que(bot, group_id, 'all', unque_str, False)
-            if m and not msg_dict.get(m): msg_dict[m] = []
-            if m: msg_dict[m].append(group_id)
+            m, _ = await del_que(bot, group_id, 'all', no_que_str, False)
+            if m and not msg_dict.get(m):
+                msg_dict[m] = []
+            if m:
+                msg_dict[m].append(group_id)
         for msg_tmp in list(msg_dict.keys()):
             g_list = msg_dict[msg_tmp]
             g_msg = ','.join(g_list)
@@ -174,8 +179,8 @@ async def delete_question(bot, ev):
             return
         user_id = user_id if str(user_id_at) == str(ev.self_id) else user_id_at
     # 仅调整不要回答的问题中的图片
-    unque_str = await adjust_img(bot, unque_str)
-    msg, del_image = await del_que(bot, group_id, user_id, unque_str, True, priv.get_user_priv(ev) < 21)
+    no_que_str = await adjust_img(bot, no_que_str)
+    msg, del_image = await del_que(bot, group_id, user_id, no_que_str, True, priv.get_user_priv(ev) < 21)
     await bot.send(ev, msg)
     await delete_img(del_image)
 
@@ -222,6 +227,7 @@ async def copy_question(bot, ev):
     msg = await copy_que(group_1, group_2, msg_1)
     await bot.send(ev, msg)
 
+
 # 添加敏感词
 @sv.on_prefix('XQA添加敏感词')
 async def add_sensitive_words(bot, ev):
@@ -258,21 +264,24 @@ async def del_sensitive_words(bot, ev):
 
 # 提取艾琳佬的eqa数据
 @sv.on_fullmatch('.xqa_extract_data')
-async def hahahaha(bot, ev):
-    if not priv.check_priv(ev, priv.SUPERUSER): return
+async def xqa_extract_data(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        return
     await bot.send(ev, await get_dict())
 
 
 # 写入提取出的数据
 @sv.on_fullmatch('.xqa_write_data')
-async def xixixixi(bot, ev):
-    if not priv.check_priv(ev, priv.SUPERUSER): return
+async def xqa_write_data(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        return
     await bot.send(ev, await write_info())
 
 
 # 格式化数据
 @sv.on_fullmatch('.xqa_format_data')
-async def lalalala(bot, ev):
-    if not priv.check_priv(ev, priv.SUPERUSER): return
+async def xqa_format_data(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        return
     await bot.send(ev, '正在进行格式化，请查看后台日志')
     await bot.send(ev, await format_info(bot))

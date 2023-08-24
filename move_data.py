@@ -1,17 +1,18 @@
-'''
+"""
 作者：AZMIAO
 说明：该文件用于将艾琳佬的数据复制部分到本插件，请确保安装完依赖
-'''
+"""
 
-from sqlitedict import SqliteDict
-import os
-import json
-import re
-import shutil
 import base64
 import hashlib
+import json
+import os
+import re
+import shutil
 
 from hoshino import logger
+from sqlitedict import SqliteDict
+
 from .util import get_database, adjust_img, FILE_PATH
 
 

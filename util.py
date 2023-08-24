@@ -1,12 +1,13 @@
+import asyncio
 import json
 import os
-import re
 import random
+import re
 import urllib
-import asyncio
-from sqlitedict import SqliteDict
 
 from hoshino import R, logger, util
+from sqlitedict import SqliteDict
+
 from .textfilter.filter import DFAFilter
 
 # ==================== ↓ 可修改的配置 ↓ ====================
@@ -15,32 +16,32 @@ from .textfilter.filter import DFAFilter
 '''
 
 # 储存数据位置（二选一，初次使用后不可改动，除非自己手动迁移，重启BOT生效，也可换成自己想要的路径）
-FILE_PATH = R.img('xqa').path               # 数据在res文件夹里
+FILE_PATH = R.img('xqa').path  # 数据在res文件夹里
 # FILE_PATH = os.path.dirname(__file__)     # 数据在插件文件夹里
 
 # 是否使用星乃自带的严格词库（二选一，可随时改动，重启BOT生效）
 # USE_STRICT = True     # 使用星乃自带敏感词库，较为严格，安全可靠
-USE_STRICT = False      # 使用XQA自带敏感词库，较为宽容，可自行增删
+USE_STRICT = False  # 使用XQA自带敏感词库，较为宽容，可自行增删
 
 # 是否要启用消息分段发送，仅在查询问题时生效，避免消息过长发不出去（可随时改动，重启BOT生效）
-IS_SPILT_MSG = True     # 是否要启用消息分段，默认开启，关闭改成False
-MSG_LENTH = 1000        # 消息分段长度限制，只能数字，千万不能太小，默认1000
-SPLIT_INTERVAL = 1      # 消息分段发送时间间隔，只能数字，单位秒，默认1秒
+IS_SPILT_MSG = True  # 是否要启用消息分段，默认开启，关闭改成False
+MSG_LENGTH = 1000  # 消息分段长度限制，只能数字，千万不能太小，默认1000
+SPLIT_INTERVAL = 1  # 消息分段发送时间间隔，只能数字，单位秒，默认1秒
 
 # 是否使用转发消息发送，仅在查询问题时生效，和上方消息分段可同时开启（可随时改动，重启BOT生效）
-IS_FORWARD = False      # 开启后将使用转发消息发送，默认关闭
+IS_FORWARD = False  # 开启后将使用转发消息发送，默认关闭
 
 # 设置问答的时候，是否校验回答的长度，最大长度和上方 MSG_LENTH 保持一致（可随时改动，重启BOT生效）
-IS_JUDGE_LENTH = False   # 校验回答的长度，在长度范围内就允许设置问题，超过就不允许，默认开启
+IS_JUDGE_LENGTH = False  # 校验回答的长度，在长度范围内就允许设置问题，超过就不允许，默认开启
 
 # 如果开启分段发送，且长度没超限制，且开启转发消息时，由于未超长度限制只有一条消息，这时是否需要直接发送而非转发消息（可随时改动，重启BOT生效）
-IS_DIRECT_SINGER = True # 直接发送，默认开启
+IS_DIRECT_SINGER = True  # 直接发送，默认开启
 
 # 看问答的时候，展示的分隔符（可随时改动，重启BOT生效）
-SPLIT_MSG = ' | '       # 默认' | '，可自行换成'\n'或者' '等。单引号不能漏
+SPLIT_MSG = ' | '  # 默认' | '，可自行换成'\n'或者' '等。单引号不能漏
+
 
 # ==================== ↑ 可修改的配置 ↑ ====================
-
 
 
 # 判断是否在群里
@@ -138,12 +139,12 @@ async def doing_img(bot, img: str, is_ans: bool = False, save: bool = False) -> 
 
 # 进行图片处理
 async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:
-    flit_msg = beautiful(str_raw) # 整个消息匹配敏感词
-    cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)=(\S+?)])', str_raw) # 找出其中所有的CQ码
+    flit_msg = beautiful(str_raw)  # 整个消息匹配敏感词
+    cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)=(\S+?)])', str_raw)  # 找出其中所有的CQ码
     # 对每个CQ码元组进行操作
     for cqcode in cq_list:
-        flit_cq = beautiful(cqcode[0]) # 对当前的CQ码匹配敏感词
-        raw_body = cqcode[3].split(',')[0].split('.image')[0].split('/')[-1].split('\\')[-1] # 获取等号后面的东西，并排除目录
+        flit_cq = beautiful(cqcode[0])  # 对当前的CQ码匹配敏感词
+        raw_body = cqcode[3].split(',')[0].split('.image')[0].split('/')[-1].split('\\')[-1]  # 获取等号后面的东西，并排除目录
         if cqcode[1] == 'image':
             # 对图片单独保存图片，并修改图片路径为真实路径
             raw_body = raw_body if '.' in raw_body else raw_body + '.image'
@@ -169,7 +170,7 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
     # 其次正则匹配
     for que in list_tmp:
         try:
-            cq_list = re.findall(r'\[(CQ:(\S+?),(\S+?)=(\S+?))\]', que) # 找出其中所有的CQ码
+            cq_list = re.findall(r'\[(CQ:(\S+?),(\S+?)=(\S+?))\]', que)  # 找出其中所有的CQ码
             que_new = que
             for cq_msg in cq_list:
                 que_new = que_new.replace(cq_msg[0], '\[' + cq_msg[1] + '\]')
@@ -183,7 +184,7 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
 
 
 # 删啊删
-async def delete_img(list_raw: list) -> list:
+async def delete_img(list_raw: list):
     for str_raw in list_raw:
         img_list = re.findall(r'(\[CQ:image,file=(.+?\.image)\])', str_raw)
         for img in img_list:
@@ -215,7 +216,7 @@ def beautifulworld(msg: str) -> str:
 # 切换和谐词库
 def beautiful(msg: str) -> str:
     beautiful_message = DFAFilter()
-    beautiful_message.parse(os.path.join(os.path.dirname(__file__), 'textfilter','sensitive_words.txt'))
+    beautiful_message.parse(os.path.join(os.path.dirname(__file__), 'textfilter', 'sensitive_words.txt'))
     if USE_STRICT:
         msg = util.filt_message(msg)
     else:
@@ -231,9 +232,9 @@ def spilt_msg(msg_list: list, init_msg: str) -> list:
         logger.info('XQA未开启长度限制')
         result_list.append(init_msg + SPLIT_MSG.join(msg_list))
         return result_list
-    
+
     # 开启了长度限制
-    logger.info(f'XQA已开启长度限制，长度限制{MSG_LENTH}')
+    logger.info(f'XQA已开启长度限制，长度限制{MSG_LENGTH}')
     lenth = len(init_msg)
     tmp_list = []
     for msg_tmp in msg_list:
@@ -241,7 +242,7 @@ def spilt_msg(msg_list: list, init_msg: str) -> list:
             msg_tmp = init_msg + msg_tmp
         lenth += len(msg_tmp)
         # 判断如果加上当前消息后会不会超过字符串限制
-        if lenth < MSG_LENTH:
+        if lenth < MSG_LENGTH:
             tmp_list.append(msg_tmp)
         else:
             result_list.append(SPLIT_MSG.join(tmp_list))
@@ -250,6 +251,7 @@ def spilt_msg(msg_list: list, init_msg: str) -> list:
             lenth = len(msg_tmp)
     result_list.append(SPLIT_MSG.join(tmp_list))
     return result_list
+
 
 # 发送消息函数
 async def send_result_msg(bot, ev, result_list):
@@ -272,13 +274,13 @@ async def send_result_msg(bot, ev, result_list):
     logger.info('XQA已开启转发消息，将以转发消息形式发送')
     forward_list = []
     for result in result_list:
-        data ={
+        data = {
             "type": "node",
             "data": {
                 "name": "你问我答BOT",
                 "uin": str(ev.self_id),
                 "content": result
-                }
+            }
         }
         forward_list.append(data)
-    await bot.send_group_forward_msg(group_id = ev['group_id'], messages = forward_list)
+    await bot.send_group_forward_msg(group_id=ev['group_id'], messages=forward_list)
