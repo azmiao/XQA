@@ -1,12 +1,13 @@
 """
 作者：AZMIAO
 
-版本：1.4.0
+版本：1.5.0
 
 XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
 """
 
 import html
+import json
 import os
 import re
 
@@ -17,6 +18,14 @@ from .operate_msg import set_que, show_que, show_all_group_que, del_que, copy_qu
 from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list, \
     delete_img, send_result_msg, MSG_LENGTH, IS_JUDGE_LENGTH
 
+# XQA配置，启动！
+group_auth_path = os.path.join(os.path.dirname(__file__), 'group_auth.json')
+if not os.path.exists(group_auth_path):
+    with open(group_auth_path, 'w', encoding='UTF-8') as f:
+        json.dump({}, f, indent=4, ensure_ascii=False)
+
+
+# 帮助文本
 sv_help = '''
 =====注意=====
 
@@ -71,6 +80,18 @@ async def set_question(bot, ev):
     if not results:
         return
     que_type, que_raw, ans_raw = results.group(1), results.group(2), results.group(3)
+
+    # 判断是否允许设置个人问答
+    if que_type == '我':
+        group_id = str(ev.group_id)
+        with open(group_auth_path, 'r', encoding='UTF-8') as file:
+            group_auth = dict(json.load(file))
+        auth_config = group_auth.get(group_id, {})
+        self_enable = auth_config.get('self', True)
+        if not self_enable:
+            # 禁用了就不鸟他
+            return
+
     if (not que_raw) or (not ans_raw):
         await bot.send(ev, f'发送“{que_type}问◯◯你答◯◯”我才记得住~')
         return
@@ -99,6 +120,16 @@ async def set_question(bot, ev):
 @sv.on_rex(r'^看看(有人|我|全群)问([\s\S]*)$')
 async def show_question(bot, ev):
     que_type, search_str = ev['match'].group(1), ev['match'].group(2)
+    # 判断是否允许设置个人问答
+    if que_type == '我':
+        group_id = str(ev.group_id)
+        with open(group_auth_path, 'r', encoding='UTF-8') as file:
+            group_auth = dict(json.load(file))
+        auth_config = group_auth.get(group_id, {})
+        self_enable = auth_config.get('self', True)
+        if not self_enable:
+            # 禁用了就不鸟他
+            return
     group_id, user_id = str(ev.group_id), str(ev.user_id)
     if que_type == '全群':
         group_list = await get_g_list(bot)
@@ -194,8 +225,19 @@ async def xqa(bot, ev):
     message = html.unescape(message)
     # 仅调整问题中的图片
     message = await adjust_img(bot, message)
+
     # 优先回复自己的问答
-    ans = await match_ans(group_dict.get(user_id, {}), message, '')
+    ans = None
+    # 判断是否允许设置个人问答
+    group_id = str(ev.group_id)
+    with open(group_auth_path, 'r', encoding='UTF-8') as file:
+        group_auth = dict(json.load(file))
+    auth_config = group_auth.get(group_id, {})
+    self_enable = auth_config.get('self', True)
+    if self_enable:
+        # 启用我问功能才会回复个人问答
+        ans = await match_ans(group_dict.get(user_id, {}), message, '')
+
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans:
@@ -260,6 +302,48 @@ async def del_sensitive_words(bot, ev):
                 if line.strip("\n") != i:
                     f.write(line)
     await bot.send(ev, f'删除完毕')
+
+
+# 分群控制个人问答权限-禁用我问
+@sv.on_fullmatch('XQA禁用我问')
+async def xqa_disable_self(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev, f'该功能限维护组')
+        return
+    group_id = str(ev.group_id)
+    with open(group_auth_path, 'r', encoding='UTF-8') as file:
+        group_auth = dict(json.load(file))
+    auth_config = group_auth.get(group_id, {})
+    self_enable = auth_config.get('self', True)
+    if not self_enable:
+        await bot.send(ev, f'本群已经禁用了个人问答哦，无需再次禁用')
+        return
+    auth_config['self'] = False
+    group_auth[group_id] = auth_config
+    with open(group_auth_path, 'w', encoding='UTF-8') as file:
+        json.dump(group_auth, file, indent=4, ensure_ascii=False)
+    await bot.send(ev, f'本群已成功禁用个人问答功能！')
+
+
+# 分群控制个人问答权限-启用我问
+@sv.on_fullmatch('XQA启用我问')
+async def xqa_enable_self(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev, f'该功能限维护组')
+        return
+    group_id = str(ev.group_id)
+    with open(group_auth_path, 'r', encoding='UTF-8') as file:
+        group_auth = dict(json.load(file))
+    auth_config = group_auth.get(group_id, {})
+    self_enable = auth_config.get('self', True)
+    if self_enable:
+        await bot.send(ev, f'本群已经启用了个人问答哦，无需再次启用')
+        return
+    auth_config['self'] = True
+    group_auth[group_id] = auth_config
+    with open(group_auth_path, 'w', encoding='UTF-8') as file:
+        json.dump(group_auth, file, indent=4, ensure_ascii=False)
+    await bot.send(ev, f'本群已成功启用个人问答功能！')
 
 
 # 提取艾琳佬的eqa数据
