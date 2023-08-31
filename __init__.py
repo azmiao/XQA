@@ -14,7 +14,7 @@ import re
 from hoshino import Service, priv
 
 from .move_data import get_dict, write_info, format_info
-from .operate_msg import set_que, show_que, show_all_group_que, del_que, copy_que
+from .operate_msg import set_que, show_que, show_all_group_que, del_que, copy_que, delete_all
 from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list, \
     delete_img, send_result_msg, MSG_LENGTH, IS_JUDGE_LENGTH
 
@@ -344,6 +344,36 @@ async def xqa_enable_self(bot, ev):
     with open(group_auth_path, 'w', encoding='UTF-8') as file:
         json.dump(group_auth, file, indent=4, ensure_ascii=False)
     await bot.send(ev, f'本群已成功启用个人问答功能！')
+
+
+# 清空本群所有我问
+@sv.on_fullmatch('XQA清空本群所有我问')
+async def xqa_delete_self(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev, f'该功能限维护组')
+        return
+    group_id = str(ev.group_id)
+    try:
+        await delete_all(group_id, True)
+        msg = '所有我问清空成功'
+    except Exception as e:
+        msg = '所有我问清空失败：' + str(e)
+    await bot.send(ev, msg)
+
+
+# 清空本群所有有人问
+@sv.on_fullmatch('XQA清空本群所有有人问')
+async def xqa_delete_all(bot, ev):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev, f'该功能限维护组')
+        return
+    group_id = str(ev.group_id)
+    try:
+        await delete_all(group_id, False)
+        msg = '所有有人问清空成功'
+    except Exception as e:
+        msg = '所有有人问清空失败：' + str(e)
+    await bot.send(ev, msg)
 
 
 # 提取艾琳佬的eqa数据

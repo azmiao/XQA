@@ -142,3 +142,18 @@ async def copy_que(group_1, group_2, msg_1):
         return f'已将群{group_1}的个人问答复制至群{group_2}'
     else:
         return f'不支持的参数输入：{msg_1}'
+
+
+# 清空问答
+async def delete_all(group_id, is_self):
+    db = await get_database()
+    group_dict = db.get(group_id, {'all': {}})
+    if is_self:
+        # 清除个人问答
+        all_que = group_dict.get('all', {})
+        group_dict.clear()
+        group_dict['all'] = all_que
+    else:
+        # 清除所有有人问
+        group_dict['all'] = {}
+    db[group_id] = group_dict
