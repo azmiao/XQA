@@ -40,6 +40,8 @@ IS_DIRECT_SINGER = True  # 直接发送，默认开启
 # 看问答的时候，展示的分隔符（可随时改动，重启BOT生效）
 SPLIT_MSG = ' | '  # 默认' | '，可自行换成'\n'或者' '等。单引号不能漏
 
+#是否使用base64格式发送图片（适合使用docker部署或者使用shamrock）
+ISBASE64 = False
 
 # ==================== ↑ 可修改的配置 ↑ ====================
 
@@ -150,6 +152,10 @@ async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False
             raw_body = raw_body if '.' in raw_body else raw_body + '.image'
             raw_body = await doing_img(bot, raw_body, is_ans, save)
         if is_ans:
+            #回答问题用base64格式发送
+            if ISBASE64:
+                with open(raw_body.replace('file:///', ''),"rb") as file:
+                    raw_body = "base64://" + base64.b64encode(file.read()).decode()
             # 如果是回答的时候，就将 匹配过的消息 中的 匹配过的CQ码 替换成未匹配的
             flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cqcode[1]},{cqcode[2]}={raw_body}]')
         else:
