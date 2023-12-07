@@ -4,6 +4,7 @@ import os
 import random
 import re
 import urllib
+import base64
 
 from hoshino import R, logger, util
 from sqlitedict import SqliteDict
