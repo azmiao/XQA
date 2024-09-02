@@ -41,8 +41,8 @@ IS_DIRECT_SINGER = True  # 直接发送，默认开启
 # 看问答的时候，展示的分隔符（可随时改动，重启BOT生效）
 SPLIT_MSG = ' | '  # 默认' | '，可自行换成'\n'或者' '等。单引号不能漏
 
-#是否使用base64格式发送图片（适合使用docker部署或者使用shamrock）
-ISBASE64 = False
+# 是否使用base64格式发送图片（适合使用docker部署或者使用shamrock）
+IS_BASE64 = False
 
 # ==================== ↑ 可修改的配置 ↑ ====================
 
@@ -67,7 +67,7 @@ async def get_database() -> SqliteDict:
     if not os.path.exists(img_path):
         os.makedirs(img_path)
     db_path = os.path.join(FILE_PATH, 'data.sqlite')
-    # 替换默认的pickle为josn的形式读写数据库
+    # 替换默认的pickle为json的形式读写数据库
     db = SqliteDict(db_path, encode=json.dumps, decode=json.loads, autocommit=True)
     return db
 
@@ -124,19 +124,28 @@ async def adjust_list(list_tmp: list, char: str) -> list:
 # 下载以及分类图片
 async def doing_img(bot, img: str, is_ans: bool = False, save: bool = False) -> str:
     img_path = os.path.join(FILE_PATH, 'img/')
+    # 为napCat做文件名兼容
+    if '|' not in img and '.' not in img:
+        img = img + '.image'
+    file = os.path.join(img_path, img.replace('|', '_'))
     if save:
+        img_data = None
         try:
-            img_url = await bot.get_image(file=img)
-            file = os.path.join(img_path, img)
-            if not os.path.isfile(img_path + img):
-                urllib.request.urlretrieve(url=img_url['url'], filename=file)
-                logger.critical(f'XQA: 已下载图片{img}')
-        except:
-            if not os.path.isfile(img_path + img):
-                logger.critical(f'XQA: 图片{img}已经过期，请重新设置问答')
-            pass
+            img_data = await bot.get_image(file=img)
+        except Exception as e:
+            logger.critical(f'XQA: 调用get_image接口查询图片{img}出错:' + str(e))
+            assert Exception(f'调用get_image接口查询图片{img}出错:' + str(e))
+
+        url = img_data['url']
+        try:
+            if not os.path.isfile(file):
+                urllib.request.urlretrieve(url=url, filename=file)
+                logger.critical(f'XQA: 已从{url}下载到图片{img.replace("|", "_")}')
+        except Exception as e:
+            logger.critical(f'XQA: 从{url}下载图片{img.replace("|", "_")}出错:' + str(e))
+            assert Exception(f'调用get_image接口查询图片{img}出错:' + str(e))
     if is_ans:  # 保证保存图片的完整性，方便迁移和后续做操作
-        return 'file:///' + os.path.abspath(img_path + img)
+        return 'file:///' + os.path.abspath(file)
     return img
 
 
@@ -145,23 +154,22 @@ async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False
     flit_msg = beautiful(str_raw)  # 整个消息匹配敏感词
     cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)=(\S+?)])', str_raw)  # 找出其中所有的CQ码
     # 对每个CQ码元组进行操作
-    for cqcode in cq_list:
-        flit_cq = beautiful(cqcode[0])  # 对当前的CQ码匹配敏感词
-        raw_body = cqcode[3].split(',')[0].split('.image')[0].split('/')[-1].split('\\')[-1]  # 获取等号后面的东西，并排除目录
-        if cqcode[1] == 'image':
+    for cq_code in cq_list:
+        flit_cq = beautiful(cq_code[0])  # 对当前的CQ码匹配敏感词
+        raw_body = cq_code[3].split(',')[0].split('.image')[0].split('/')[-1].split('\\')[-1]  # 获取等号后面的东西，并排除目录
+        if cq_code[1] == 'image':
             # 对图片单独保存图片，并修改图片路径为真实路径
-            raw_body = raw_body if '.' in raw_body else raw_body + '.image'
             raw_body = await doing_img(bot, raw_body, is_ans, save)
         if is_ans:
-            #回答问题用base64格式发送
-            if ISBASE64:
-                with open(raw_body.replace('file:///', ''),"rb") as file:
-                    raw_body = "base64://" + base64.b64encode(file.read()).decode()
+            # 回答问题用base64格式发送
+            if IS_BASE64:
+                with open(raw_body.replace('file:///', ''), 'rb') as file:
+                    raw_body = 'base64://' + base64.b64encode(file.read()).decode()
             # 如果是回答的时候，就将 匹配过的消息 中的 匹配过的CQ码 替换成未匹配的
-            flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cqcode[1]},{cqcode[2]}={raw_body}]')
+            flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cq_code[1]},{cq_code[2]}={raw_body}]')
         else:
             # 如果是保存问答的时候，就只替换图片的路径，其他CQ码的替换相当于没变
-            str_raw = str_raw.replace(cqcode[0], f'[CQ:{cqcode[1]},{cqcode[2]}={raw_body}]')
+            str_raw = str_raw.replace(cq_code[0], f'[CQ:{cq_code[1]},{cq_code[2]}={raw_body}]')
     # 解决回答中不用于随机回答的\#
     flit_msg = flit_msg.replace('\#', '#')
     return str_raw if not is_ans else flit_msg

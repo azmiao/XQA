@@ -1,3 +1,5 @@
 /textfilter/sensitive_word.txt
 
 *.json
+
+.idea/
