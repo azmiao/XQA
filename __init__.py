@@ -241,7 +241,7 @@ async def xqa(bot, ev):
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans:
-        ans = await adjust_img(bot, ans, is_ans=True, save=True)
+        ans = await adjust_img(bot, ans, is_ans=True, save=False)
         await bot.send(ev, ans)
 
 
