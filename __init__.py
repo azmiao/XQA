@@ -1,7 +1,7 @@
 """
 作者：AZMIAO
 
-版本：1.5.0
+版本：1.5.4
 
 XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
 """
@@ -241,7 +241,7 @@ async def xqa(bot, ev):
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans:
-        ans = await adjust_img(bot, ans, is_ans=True, save=False)
+        ans = await adjust_img(bot, ans, True)
         await bot.send(ev, ans)
 
 

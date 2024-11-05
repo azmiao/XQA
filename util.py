@@ -1,10 +1,10 @@
 import asyncio
+import base64
 import json
 import os
 import random
 import re
-import urllib
-import base64
+from urllib import request
 
 from hoshino import R, logger, util
 from sqlitedict import SqliteDict
@@ -122,56 +122,60 @@ async def adjust_list(list_tmp: list, char: str) -> list:
 
 
 # 下载以及分类图片
-async def doing_img(bot, img: str, is_ans: bool = False, save: bool = False) -> str:
-    img_path = os.path.join(FILE_PATH, 'img/')
-    # 为napCat做文件名兼容
-    if '|' not in img and '.' not in img:
-        img = img + '.image'
-    file = os.path.join(img_path, img.replace('|', '_'))
+async def doing_img(bot, img_name: str, img_file: str, is_ans: bool = False, save: bool = False) -> str:
+    img_path = os.path.join(FILE_PATH, 'img')
+    file = os.path.join(img_path, img_name)
     if save:
         img_data = None
         try:
-            img_data = await bot.get_image(file=img)
+            img_data = await bot.get_image(file=img_file)
         except Exception as e:
-            logger.critical(f'XQA: 调用get_image接口查询图片{img}出错:' + str(e))
-            assert Exception(f'调用get_image接口查询图片{img}出错:' + str(e))
+            logger.critical(f'XQA: 调用get_image接口查询图片{img_file}出错:' + str(e))
+            assert Exception(f'调用get_image接口查询图片{img_file}出错:' + str(e))
 
         url = img_data['url']
         try:
             if not os.path.isfile(file):
-                urllib.request.urlretrieve(url=url, filename=file)
-                logger.critical(f'XQA: 已从{url}下载到图片{img.replace("|", "_")}')
+                request.urlretrieve(url=url, filename=file)
+                logger.critical(f'XQA: 已从{url}下载到图片{img_name}')
         except Exception as e:
-            logger.critical(f'XQA: 从{url}下载图片{img.replace("|", "_")}出错:' + str(e))
-            assert Exception(f'调用get_image接口查询图片{img}出错:' + str(e))
+            logger.critical(f'XQA: 从{url}下载图片{img_name}出错:' + str(e))
+            assert Exception(f'调用get_image接口查询图片{img_name}出错:' + str(e))
     if is_ans:  # 保证保存图片的完整性，方便迁移和后续做操作
         return 'file:///' + os.path.abspath(file)
-    return img
+    return img_file
 
 
 # 进行图片处理
 async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:
     flit_msg = beautiful(str_raw)  # 整个消息匹配敏感词
-    cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)=(\S+?)])', str_raw)  # 找出其中所有的CQ码
+    cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)])', str_raw)  # 找出其中所有的CQ码
     # 对每个CQ码元组进行操作
     for cq_code in cq_list:
         flit_cq = beautiful(cq_code[0])  # 对当前的CQ码匹配敏感词
-        raw_body = cq_code[3].split(',')[0].split('.image')[0].split('/')[-1].split('\\')[-1]  # 获取等号后面的东西，并排除目录
+        # 解析所有CQ码参数
+        cq_split = str(cq_code[2]).split(',')
+        image_file_name_raw = next(filter(lambda x: x.startswith('filename='), cq_split), '')
+        image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
+        # 拿到file参数 | 如果是链接：不处理(NapCat) | 如果是单文件名：Go-cq | 如果是带路径的文件名：XQA本地已保存
+        file_data = image_file_raw.replace('file=', '')
+        image_file = file_data.split('\\')[-1].split('/')[-1] if 'file:///' in file_data else file_data
+        image_file_name = image_file_name_raw.replace('filename=', '') if image_file_name_raw else image_file
         if cq_code[1] == 'image':
             # 对图片单独保存图片，并修改图片路径为真实路径
-            raw_body = await doing_img(bot, raw_body, is_ans, save)
+            image_file = await doing_img(bot, image_file_name, image_file, is_ans, save)
         if is_ans:
             # 回答问题用base64格式发送
             if IS_BASE64:
-                with open(raw_body.replace('file:///', ''), 'rb') as file:
-                    raw_body = 'base64://' + base64.b64encode(file.read()).decode()
+                with open(image_file.replace('file:///', ''), 'rb') as file:
+                    image_file = 'base64://' + base64.b64encode(file.read()).decode()
             # 如果是回答的时候，就将 匹配过的消息 中的 匹配过的CQ码 替换成未匹配的
-            flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cq_code[1]},{cq_code[2]}={raw_body}]')
+            flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cq_code[1]},file={image_file}]')
         else:
             # 如果是保存问答的时候，就只替换图片的路径，其他CQ码的替换相当于没变
-            str_raw = str_raw.replace(cq_code[0], f'[CQ:{cq_code[1]},{cq_code[2]}={raw_body}]')
+            str_raw = str_raw.replace(cq_code[0], f'[CQ:{cq_code[1]},file={image_file}]')
     # 解决回答中不用于随机回答的\#
-    flit_msg = flit_msg.replace('\#', '#')
+    flit_msg = flit_msg.replace('\\#', '#')
     return str_raw if not is_ans else flit_msg
 
 
@@ -185,10 +189,11 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
     # 其次正则匹配
     for que in list_tmp:
         try:
-            cq_list = re.findall(r'\[(CQ:(\S+?),(\S+?)=(\S+?))\]', que)  # 找出其中所有的CQ码
+            # 找出其中所有的CQ码
+            cq_list = re.findall(r'\[(CQ:(\S+?),(\S+?)=(\S+?))]', que)
             que_new = que
             for cq_msg in cq_list:
-                que_new = que_new.replace(cq_msg[0], '\[' + cq_msg[1] + '\]')
+                que_new = que_new.replace(cq_msg[0], '[' + cq_msg[1] + ']')
             if re.match(que_new + '$', message):
                 ans = await replace_message(re.match(que_new + '$', message), info, que)
                 break
@@ -201,18 +206,17 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
 # 删啊删
 async def delete_img(list_raw: list):
     for str_raw in list_raw:
-        img_list = re.findall(r'(\[CQ:image,file=(.+?\.image)\])', str_raw)
-        for img in img_list:
-            file = img[1]
+        cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)])', str_raw)
+        for cq_code in cq_list:
+            cq_split = str(cq_code[2]).split(',')
+            image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
+            image_file = image_file_raw.replace('file=', '')
+            img_path = os.path.join(FILE_PATH, 'img', image_file)
             try:
-                file = os.path.split(file)[-1]
+                os.remove(img_path)
+                logger.info(f'XQA: 已删除图片{image_file}')
             except:
-                pass
-            try:
-                os.remove(os.path.abspath(FILE_PATH + '/img/' + img[1]))
-                logger.info(f'XQA: 已删除图片{file}')
-            except:
-                logger.info(f'XQA: 图片{file}不存在，无需删除')
+                logger.info(f'XQA: 图片{image_file}不存在，无需删除')
 
 
 # 和谐模块
