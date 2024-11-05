@@ -155,12 +155,19 @@ async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False
         flit_cq = beautiful(cq_code[0])  # 对当前的CQ码匹配敏感词
         # 解析所有CQ码参数
         cq_split = str(cq_code[2]).split(',')
-        image_file_name_raw = next(filter(lambda x: x.startswith('filename='), cq_split), '')
+        # 拿到file参数 | 如果是单文件名：原始CQ | 如果是带路径的文件名：XQA本地已保存的图片，需要获取到单文件名
         image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
-        # 拿到file参数 | 如果是链接：不处理(NapCat) | 如果是单文件名：Go-cq | 如果是带路径的文件名：XQA本地已保存
         file_data = image_file_raw.replace('file=', '')
         image_file = file_data.split('\\')[-1].split('/')[-1] if 'file:///' in file_data else file_data
-        image_file_name = image_file_name_raw.replace('filename=', '') if image_file_name_raw else image_file
+        # 文件名 | Go-cq是没有这些参数的，可以直接用file参数 | 如果有才做特殊兼容处理：优先级：file_unique > filename > file_id
+        image_file_name_raw = (next(filter(lambda x: x.startswith('file_unique='), cq_split), '')
+                               .replace('file_unique=', ''))
+        image_file_name_raw = (next(filter(lambda x: x.startswith('filename='), cq_split), '')
+                               .replace('filename=', '')) if not image_file_name_raw else image_file_name_raw
+        image_file_name_raw = (next(filter(lambda x: x.startswith('file_id='), cq_split), '')
+                               .replace('file_id=', '')) if not image_file_name_raw else image_file_name_raw
+        # 如果三个都没有 | 那就直接用file参数，比如Go-cq
+        image_file_name = image_file_name_raw if image_file_name_raw else image_file
         if cq_code[1] == 'image':
             # 对图片单独保存图片，并修改图片路径为真实路径
             image_file = await doing_img(bot, image_file_name, image_file, is_ans, save)
