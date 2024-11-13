@@ -121,11 +121,14 @@ async def adjust_list(list_tmp: list, char: str) -> list:
     return ans_list
 
 
-# 下载以及分类图片
-async def doing_img(bot, img_name: str, img_file: str, is_ans: bool = False, save: bool = False) -> str:
+# 下载图片并转换图片路径
+async def doing_img(bot, img_name: str, img_file: str, save: bool) -> str:
     img_path = os.path.join(FILE_PATH, 'img')
     file = os.path.join(img_path, img_name)
+
+    # 调用协议客户端实现接口下载图片
     if save:
+        # 先重新拿URL，防止被客户端CQ码的缓存忽悠
         img_data = None
         try:
             img_data = await bot.get_image(file=img_file)
@@ -133,6 +136,7 @@ async def doing_img(bot, img_name: str, img_file: str, is_ans: bool = False, sav
             logger.critical(f'XQA: 调用get_image接口查询图片{img_file}出错:' + str(e))
             assert Exception(f'调用get_image接口查询图片{img_file}出错:' + str(e))
 
+        # 下载文件
         url = img_data['url']
         try:
             if not os.path.isfile(file):
@@ -141,49 +145,64 @@ async def doing_img(bot, img_name: str, img_file: str, is_ans: bool = False, sav
         except Exception as e:
             logger.critical(f'XQA: 从{url}下载图片{img_name}出错:' + str(e))
             assert Exception(f'调用get_image接口查询图片{img_name}出错:' + str(e))
-    if is_ans:  # 保证保存图片的完整性，方便迁移和后续做操作
-        return 'file:///' + os.path.abspath(file)
-    return img_file
+
+    if IS_BASE64:
+        # base64格式
+        with open(file, 'rb') as f:
+            image_file = 'base64://' + base64.b64encode(f.read()).decode()
+    else:
+        # file格式
+        image_file = 'file:///' + os.path.abspath(file)
+    return image_file
 
 
-# 进行图片处理
-async def adjust_img(bot, str_raw: str, is_ans: bool = False, save: bool = False) -> str:
-    flit_msg = beautiful(str_raw)  # 整个消息匹配敏感词
-    cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)])', str_raw)  # 找出其中所有的CQ码
+# 根据CQ中的"xxx=xxxx,yyy=yyyy,..."提取出file和file_name
+async def extract_file(cq_code_str: str) -> (str, str):
+    # 解析所有CQ码参数
+    cq_split = cq_code_str.split(',')
+    # 拿到file参数 | 如果是单文件名：原始CQ | 如果是带路径的文件名：XQA本地已保存的图片，需要获取到单文件名
+    image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
+    file_data = image_file_raw.replace('file=', '')
+    image_file = file_data.split('\\')[-1].split('/')[-1] if 'file:///' in file_data else file_data
+
+    # 文件名 | Go-cq是没有这些参数的，可以直接用file参数 | 如果有才做特殊兼容处理：优先级：file_unique > filename > file_id
+    image_file_name_raw = (next(filter(lambda x: x.startswith('file_unique='), cq_split), '')
+                           .replace('file_unique=', ''))
+    image_file_name_raw = (next(filter(lambda x: x.startswith('filename='), cq_split), '')
+                           .replace('filename=', '')) if not image_file_name_raw else image_file_name_raw
+    image_file_name_raw = (next(filter(lambda x: x.startswith('file_id='), cq_split), '')
+                           .replace('file_id=', '')) if not image_file_name_raw else image_file_name_raw
+    # 如果三个都没有 | 那就直接用file参数，比如Go-cq
+    image_file_name = image_file_name_raw if image_file_name_raw else image_file
+    # 补齐文件拓展名
+    image_file_name = image_file_name if '.' in image_file_name[-10:] else image_file_name + '.image'
+    return image_file, image_file_name
+
+
+# 进行图片处理 | 问题：无需过滤敏感词，回答：需要过滤敏感词
+async def adjust_img(bot, str_raw: str, is_ans: bool, save: bool) -> str:
+    # 找出其中所有的CQ码
+    cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)])', str_raw)
+    # 整个消息过滤敏感词，问题：无需过滤
+    flit_msg = beautiful(str_raw) if is_ans else str_raw
     # 对每个CQ码元组进行操作
     for cq_code in cq_list:
-        flit_cq = beautiful(cq_code[0])  # 对当前的CQ码匹配敏感词
-        # 解析所有CQ码参数
-        cq_split = str(cq_code[2]).split(',')
-        # 拿到file参数 | 如果是单文件名：原始CQ | 如果是带路径的文件名：XQA本地已保存的图片，需要获取到单文件名
-        image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
-        file_data = image_file_raw.replace('file=', '')
-        image_file = file_data.split('\\')[-1].split('/')[-1] if 'file:///' in file_data else file_data
-        # 文件名 | Go-cq是没有这些参数的，可以直接用file参数 | 如果有才做特殊兼容处理：优先级：file_unique > filename > file_id
-        image_file_name_raw = (next(filter(lambda x: x.startswith('file_unique='), cq_split), '')
-                               .replace('file_unique=', ''))
-        image_file_name_raw = (next(filter(lambda x: x.startswith('filename='), cq_split), '')
-                               .replace('filename=', '')) if not image_file_name_raw else image_file_name_raw
-        image_file_name_raw = (next(filter(lambda x: x.startswith('file_id='), cq_split), '')
-                               .replace('file_id=', '')) if not image_file_name_raw else image_file_name_raw
-        # 如果三个都没有 | 那就直接用file参数，比如Go-cq
-        image_file_name = image_file_name_raw if image_file_name_raw else image_file
+        # 对当前的完整的CQ码过滤敏感词，问题：无需过滤
+        flit_cq = beautiful(cq_code[0]) if is_ans else cq_code[0]
+        # 判断是否是图片
         if cq_code[1] == 'image':
+            # 解析file和file_name
+            image_file, image_file_name = await extract_file(cq_code[2])
             # 对图片单独保存图片，并修改图片路径为真实路径
-            image_file = await doing_img(bot, image_file_name, image_file, is_ans, save)
-        if is_ans:
-            # 回答问题用base64格式发送
-            if IS_BASE64:
-                with open(image_file.replace('file:///', ''), 'rb') as file:
-                    image_file = 'base64://' + base64.b64encode(file.read()).decode()
-            # 如果是回答的时候，就将 匹配过的消息 中的 匹配过的CQ码 替换成未匹配的
+            image_file = await doing_img(bot, image_file_name, image_file, save)
+            # 图片CQ码：替换
             flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cq_code[1]},file={image_file}]')
         else:
-            # 如果是保存问答的时候，就只替换图片的路径，其他CQ码的替换相当于没变
-            str_raw = str_raw.replace(cq_code[0], f'[CQ:{cq_code[1]},file={image_file}]')
+            # 其他CQ码：原封不动放回去，防止CQ码被敏感词过滤成错的了
+            flit_msg = flit_msg.replace(flit_cq, cq_code[0])
     # 解决回答中不用于随机回答的\#
     flit_msg = flit_msg.replace('\\#', '#')
-    return str_raw if not is_ans else flit_msg
+    return flit_msg
 
 
 # 匹配消息
@@ -213,17 +232,21 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
 # 删啊删
 async def delete_img(list_raw: list):
     for str_raw in list_raw:
+        # 这里理论上是已经规范好了的图片 | file参数就直接是路径或者base64
         cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)])', str_raw)
         for cq_code in cq_list:
             cq_split = str(cq_code[2]).split(',')
             image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
             image_file = image_file_raw.replace('file=', '')
+            if 'base64' in image_file:
+                # 目前屎山架构base64不好删，不管了
+                continue
             img_path = os.path.join(FILE_PATH, 'img', image_file)
             try:
                 os.remove(img_path)
                 logger.info(f'XQA: 已删除图片{image_file}')
-            except:
-                logger.info(f'XQA: 图片{image_file}不存在，无需删除')
+            except Exception as e:
+                logger.info(f'XQA: 图片{image_file}删除失败：' + str(e))
 
 
 # 和谐模块
@@ -261,20 +284,20 @@ def spilt_msg(msg_list: list, init_msg: str) -> list:
 
     # 开启了长度限制
     logger.info(f'XQA已开启长度限制，长度限制{MSG_LENGTH}')
-    lenth = len(init_msg)
+    length = len(init_msg)
     tmp_list = []
     for msg_tmp in msg_list:
         if msg_list.index(msg_tmp) == 0:
             msg_tmp = init_msg + msg_tmp
-        lenth += len(msg_tmp)
+        length += len(msg_tmp)
         # 判断如果加上当前消息后会不会超过字符串限制
-        if lenth < MSG_LENGTH:
+        if length < MSG_LENGTH:
             tmp_list.append(msg_tmp)
         else:
             result_list.append(SPLIT_MSG.join(tmp_list))
             # 长度和列表置位
             tmp_list = [msg_tmp]
-            lenth = len(msg_tmp)
+            length = len(msg_tmp)
     result_list.append(SPLIT_MSG.join(tmp_list))
     return result_list
 

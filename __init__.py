@@ -31,7 +31,7 @@ sv_help = '''
 
 可多行匹配，可匹配图片等
 
-回答可以用'#'分割回答，可以随机回复这几个回答,'\#'将不会分割
+回答可以用'#'分割回答，可以随机回复这几个回答,'\\#'将不会分割
 
 支持正则表达式，请用英文括号分组，回流用$加数字
 
@@ -79,6 +79,7 @@ async def set_question(bot, ev):
     results = re.match(r'^(全群|有人|我)问([\s\S]*)你答([\s\S]*)$', str(ev.message))
     if not results:
         return
+    # (全群|有人|我) | 问题 | 回答
     que_type, que_raw, ans_raw = results.group(1), results.group(2), results.group(3)
 
     # 判断是否允许设置个人问答
@@ -92,12 +93,13 @@ async def set_question(bot, ev):
             # 禁用了就不鸟他
             return
 
+    # 没有问题或没有回答
     if (not que_raw) or (not ans_raw):
         await bot.send(ev, f'发送“{que_type}问◯◯你答◯◯”我才记得住~')
         return
+    # 是否限制问答长度
     if IS_JUDGE_LENGTH and len(ans_raw) > MSG_LENGTH:
-        await bot.send(ev,
-                       f'回答的长度超过最大字符限制，限制{MSG_LENGTH}字符，包括符号和图片转码，您设置的回答字符长度为[{len(ans_raw)}]')
+        await bot.send(ev, f'回答的长度超过最大字符限制，限制{MSG_LENGTH}字符，包括符号和图片转码，您设置的回答字符长度为[{len(ans_raw)}]')
         return
     group_id, user_id = str(ev.group_id), str(ev.user_id)
 
@@ -173,6 +175,7 @@ async def delete_question(bot, ev):
     no_que_match = re.match(r'^(\[CQ:at,qq=[0-9]+])? ?(全群)?不要回答([\s\S]*)$', str(ev.message))
     if not no_que_match:
         return
+    # 用户 | 是否全群 | 不要回答的问题
     user, is_all, no_que_str = no_que_match.group(1), no_que_match.group(2), no_que_match.group(3)
     group_id, user_id = str(ev.group_id), str(ev.user_id)
     if not no_que_str:
@@ -210,7 +213,7 @@ async def delete_question(bot, ev):
             return
         user_id = user_id if str(user_id_at) == str(ev.self_id) else user_id_at
     # 仅调整不要回答的问题中的图片
-    no_que_str = await adjust_img(bot, no_que_str)
+    no_que_str = await adjust_img(bot, no_que_str, False, False)
     msg, del_image = await del_que(bot, group_id, user_id, no_que_str, True, priv.get_user_priv(ev) < 21)
     await bot.send(ev, msg)
     await delete_img(del_image)
@@ -224,7 +227,7 @@ async def xqa(bot, ev):
     group_dict = db.get(group_id, {'all': {}})
     message = html.unescape(message)
     # 仅调整问题中的图片
-    message = await adjust_img(bot, message)
+    message = await adjust_img(bot, message, False, False)
 
     # 优先回复自己的问答
     ans = None
@@ -241,7 +244,7 @@ async def xqa(bot, ev):
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans:
-        ans = await adjust_img(bot, ans, True)
+        ans = await adjust_img(bot, ans, True, False)
         await bot.send(ev, ans)
 
 
@@ -280,8 +283,8 @@ async def add_sensitive_words(bot, ev):
     infolist = info.split(' ')
     for i in infolist:
         file = os.path.join(os.path.dirname(__file__), 'textfilter/sensitive_words.txt')
-        with open(file, 'a+', encoding='utf-8') as f:
-            f.write(i + '\n')
+        with open(file, 'a+', encoding='utf-8') as lf:
+            lf.write(i + '\n')
     await bot.send(ev, f'添加完毕')
 
 
@@ -295,12 +298,12 @@ async def del_sensitive_words(bot, ev):
     infolist = info.split(' ')
     for i in infolist:
         file = os.path.join(os.path.dirname(__file__), 'textfilter/sensitive_words.txt')
-        with open(file, "r", encoding='utf-8') as f:
-            lines = f.readlines()
-        with open(file, "w", encoding='utf-8') as f:
+        with open(file, "r", encoding='utf-8') as lf:
+            lines = lf.readlines()
+        with open(file, "w", encoding='utf-8') as lf:
             for line in lines:
                 if line.strip("\n") != i:
-                    f.write(line)
+                    lf.write(line)
     await bot.send(ev, f'删除完毕')
 
 

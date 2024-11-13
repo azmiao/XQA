@@ -9,17 +9,20 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, 
     # html转码
     que_raw = html.unescape(que_raw)
     ans_raw = html.unescape(ans_raw)
+
     # 新问题就调整并下载图片
-    que_raw = await adjust_img(bot, que_raw, save=True)
+    que_raw = await adjust_img(bot, que_raw, False, True)
     # 已有问答再次设置的话，就先删除旧图片
     gid = gid if group_id == 'all' else group_id
     ans_old = db.get(gid, {}).get(user_id, {}).get(que_raw, [])
     if ans_old:
         await delete_img(ans_old)
+
     # 保存新的回答
-    ans_raw = await adjust_img(bot, ans_raw, save=True)
+    ans_raw = await adjust_img(bot, ans_raw, True, True)
     ans = ans_raw.split('#')
     ans = await adjust_list(ans, '#')
+
     if group_id == 'all':
         group_list = await get_g_list(bot)
         for group_id in group_list:
@@ -115,7 +118,7 @@ async def del_que(bot, group_id: str, user_id: str, no_que_str: str, is_singer_g
             ans = group_dict['all'].get(no_que_str)
             group_dict['all'].pop(no_que_str)
     ans_str = '#'.join(ans)  # 调整图片
-    ans_str = await adjust_img(bot, ans_str, is_ans=True)
+    ans_str = await adjust_img(bot, ans_str, False, False)
     ans.append(no_que_str)
     db[group_id] = group_dict
     return f'我不再回答 “{ans_str}” 了', ans  # 返回输出文件以及需要删除的图片
