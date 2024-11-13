@@ -237,7 +237,7 @@ async def delete_img(list_raw: list):
         for cq_code in cq_list:
             cq_split = str(cq_code[2]).split(',')
             image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
-            image_file = image_file_raw.replace('file=', '')
+            image_file = image_file_raw.replace('file=', '').replace('file:///', '')
             if 'base64' in image_file:
                 # 目前屎山架构base64不好删，不管了
                 continue
