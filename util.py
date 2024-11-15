@@ -122,28 +122,29 @@ async def adjust_list(list_tmp: list, char: str) -> list:
 
 
 # 下载图片并转换图片路径
-async def doing_img(bot, img_name: str, img_file: str, save: bool) -> str:
+async def doing_img(bot, img_name: str, img_file: str, img_url: str, save: bool) -> str:
     img_path = os.path.join(FILE_PATH, 'img')
     file = os.path.join(img_path, img_name)
 
     # 调用协议客户端实现接口下载图片
     if save:
-        # 先重新拿URL，防止被客户端CQ码的缓存忽悠
-        img_data = None
-        try:
-            img_data = await bot.get_image(file=img_file)
-        except Exception as e:
-            logger.critical(f'XQA: 调用get_image接口查询图片{img_file}出错:' + str(e))
-            assert Exception(f'调用get_image接口查询图片{img_file}出错:' + str(e))
+        # 如果没有image_url，说明是GO-CQ的客户端，重新取一下图片URL
+        if not img_url:
+            img_data = None
+            try:
+                img_data = await bot.get_image(file=img_file)
+            except Exception as e:
+                logger.critical(f'XQA: 调用get_image接口查询图片{img_file}出错:' + str(e))
+                assert Exception(f'调用get_image接口查询图片{img_file}出错:' + str(e))
+            img_url = img_data['url']
 
-        # 下载文件
-        url = img_data['url']
+        # 开始下载图片
         try:
             if not os.path.isfile(file):
-                request.urlretrieve(url=url, filename=file)
-                logger.critical(f'XQA: 已从{url}下载到图片{img_name}')
+                request.urlretrieve(url=img_url, filename=file)
+                logger.critical(f'XQA: 已从{img_url}下载到图片{img_name}')
         except Exception as e:
-            logger.critical(f'XQA: 从{url}下载图片{img_name}出错:' + str(e))
+            logger.critical(f'XQA: 从{img_url}下载图片{img_name}出错:' + str(e))
             assert Exception(f'调用get_image接口查询图片{img_name}出错:' + str(e))
 
     if IS_BASE64:
@@ -156,10 +157,11 @@ async def doing_img(bot, img_name: str, img_file: str, save: bool) -> str:
     return image_file
 
 
-# 根据CQ中的"xxx=xxxx,yyy=yyyy,..."提取出file和file_name
-async def extract_file(cq_code_str: str) -> (str, str):
+# 根据CQ中的"xxx=xxxx,yyy=yyyy,..."提取出file和file_name还有url
+async def extract_file(cq_code_str: str) -> (str, str, str):
     # 解析所有CQ码参数
     cq_split = cq_code_str.split(',')
+
     # 拿到file参数 | 如果是单文件名：原始CQ | 如果是带路径的文件名：XQA本地已保存的图片，需要获取到单文件名
     image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
     file_data = image_file_raw.replace('file=', '')
@@ -176,7 +178,11 @@ async def extract_file(cq_code_str: str) -> (str, str):
     image_file_name = image_file_name_raw if image_file_name_raw else image_file
     # 补齐文件拓展名
     image_file_name = image_file_name if '.' in image_file_name[-10:] else image_file_name + '.image'
-    return image_file, image_file_name
+
+    # 拿到URL | GO-CQ是没有这个参数的 | NapCat有
+    image_url = (next(filter(lambda x: x.startswith('url='), cq_split), '').replace('url=', ''))
+
+    return image_file, image_file_name, image_url
 
 
 # 进行图片处理 | 问题：无需过滤敏感词，回答：需要过滤敏感词
@@ -192,9 +198,9 @@ async def adjust_img(bot, str_raw: str, is_ans: bool, save: bool) -> str:
         # 判断是否是图片
         if cq_code[1] == 'image':
             # 解析file和file_name
-            image_file, image_file_name = await extract_file(cq_code[2])
+            image_file, image_file_name, image_url = await extract_file(cq_code[2])
             # 对图片单独保存图片，并修改图片路径为真实路径
-            image_file = await doing_img(bot, image_file_name, image_file, save)
+            image_file = await doing_img(bot, image_file_name, image_file, image_url, save)
             # 图片CQ码：替换
             flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cq_code[1]},file={image_file}]')
         else:
