@@ -168,28 +168,31 @@ async def extract_file(cq_code_str: str) -> (bool, str, str, str):
     image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
     file_data = image_file_raw.replace('file=', '')
 
-    # base64就不需要花里胡哨的代码了，肯定是已经保存过了的 | 实际理论上不会用上，但留个保险让他逻辑可通
+    # base64就不需要花里胡哨的代码了，肯定是已经保存过了的
     if 'base64://' in file_data:
-        logger.error('XQA: 收到base64格式的消息，理论上不应该触发，这个应该是个BUG，请携带CQ码完整日志反馈')
         return True, file_data, None, None
 
+    # 文件参数
     image_file = file_data.split('\\')[-1].split('/')[-1] if 'file:///' in file_data else file_data
 
-    # 文件名 | Go-cq是没有这些参数的，可以直接用file参数 | 如果有才做特殊兼容处理：优先级：file_unique > filename > file_id
-    image_file_name_raw = (next(filter(lambda x: x.startswith('file_unique='), cq_split), '')
-                           .replace('file_unique=', ''))
-    image_file_name_raw = (next(filter(lambda x: x.startswith('filename='), cq_split), '')
-                           .replace('filename=', '')) if not image_file_name_raw else image_file_name_raw
-    image_file_name_raw = (next(filter(lambda x: x.startswith('file_id='), cq_split), '')
-                           .replace('file_id=', '')) if not image_file_name_raw else image_file_name_raw
-    # 如果三个都没有 | 那就直接用file参数，比如Go-cq
-    image_file_name = image_file_name_raw if image_file_name_raw else image_file
-    image_file_name = image_file_name.replace('{', '').replace('}', '')
-    # 补齐文件拓展名
-    image_file_name = image_file_name if '.' in image_file_name[-10:] else image_file_name + '.image'
-
-    # 拿到URL | GO-CQ是没有这个参数的 | NapCat有
+    # 文件URL参数：LLOneBot 和 NapCat 有这个参数
     image_url = (next(filter(lambda x: x.startswith('url='), cq_split), '').replace('url=', ''))
+
+    # 文件名参数：对于LLOneBot | 需要取 filename 参数做文件名
+    image_file_name = (next(filter(lambda x: x.startswith('filename='), cq_split), '')
+                       .replace('filename=', ''))
+    # 文件名参数：对于NapCat | 需要取 file_unique 参数做文件名
+    image_file_name = (next(filter(lambda x: x.startswith('file_unique='), cq_split), '')
+                       .replace('file_unique=', '')) if not image_file_name else image_file_name
+    # 文件名参数：对于其他可能的协议 | 需要取 file_id 参数做文件名
+    image_file_name = (next(filter(lambda x: x.startswith('file_id='), cq_split), '')
+                       .replace('file_id=', '')) if not image_file_name else image_file_name
+    # 文件名参数：对于GO-CQ | image_file 和 image_file_name 一致即可
+    image_file_name = image_file_name if image_file_name else image_file
+    # 文件名参数：替换特殊字符为下划线
+    image_file_name = re.sub(r'[\\/:*?"<>|{}]', '_', image_file_name)
+    # 文件名参数：最后10个字符里没有点号 | 补齐文件拓展名
+    image_file_name = image_file_name if '.' in image_file_name[-10:] else image_file_name + '.image'
 
     return False, image_file, image_file_name, image_url
 

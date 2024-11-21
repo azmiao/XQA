@@ -219,7 +219,6 @@ async def xqa(bot, ev):
     group_id, user_id, message = str(ev.group_id), str(ev.user_id), str(ev.message)
     db = await get_database()
     group_dict = db.get(group_id, {'all': {}})
-    message = html.unescape(message)
     # 仅调整问题中的图片
     message = await adjust_img(None, message, False, False)
 

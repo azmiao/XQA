@@ -1,14 +1,9 @@
-import html
-
 from .util import *
 
 
 # 保存问答
 async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, gid: str) -> str:
     db = await get_database()
-    # html转码
-    que_raw = html.unescape(que_raw)
-    ans_raw = html.unescape(ans_raw)
 
     # 新问题只调整 | 但不要下载图片，只要能匹配上就可以
     que_raw = await adjust_img(bot, que_raw, False, False)
@@ -45,7 +40,6 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, 
 # 显示有人/我问 和 查其他人的问答
 async def show_que(group_id: str, user_id: str, search_str: str, msg_head: str) -> list:
     db = await get_database()
-    search_str = html.unescape(search_str)
     # 对象
     user_object = '管理员' if user_id == 'all' else '你'
 
@@ -69,7 +63,6 @@ async def show_que(group_id: str, user_id: str, search_str: str, msg_head: str) 
 # 显示全群问答 | 单独做个函数
 async def show_all_group_que(search_str: str, group_list: list) -> list:
     db = await get_database()
-    search_str = html.unescape(search_str)
     result_list = []
     init_msg = f'查询"{search_str}"相关的结果如下：\n' if search_str else ''
 
@@ -92,9 +85,8 @@ async def show_all_group_que(search_str: str, group_list: list) -> list:
 # 删除问答
 async def del_que(group_id: str, user_id: str, no_que_str: str, is_singer_group: bool = True, is_self: bool = False):
     db = await get_database()
-    no_que_str_raw = html.unescape(no_que_str)
     # 调整问题文本图片
-    no_que_str = await adjust_img(None, no_que_str_raw, False, False)
+    no_que_str = await adjust_img(None, no_que_str, False, False)
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
     # 删除我问
