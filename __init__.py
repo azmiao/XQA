@@ -1,22 +1,16 @@
 """
 作者：AZMIAO
 
-版本：1.5.4
+版本：1.5.5
 
 XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
 """
 
-import html
-import json
-import os
-import re
-
 from hoshino import Service, priv
 
-from .move_data import get_dict, write_info, format_info
-from .operate_msg import set_que, show_que, show_all_group_que, del_que, copy_que, delete_all
-from .util import judge_ismember, get_database, match_ans, adjust_img, get_g_list, \
-    delete_img, send_result_msg, MSG_LENGTH, IS_JUDGE_LENGTH
+from .move_data import *
+from .operate_msg import *
+from .util import *
 
 # XQA配置，启动！
 group_auth_path = os.path.join(os.path.dirname(__file__), 'group_auth.json')
@@ -190,7 +184,7 @@ async def delete_question(bot, ev):
         msg_dict = {}
         msg = f''
         for group_id in group_list:
-            m, _ = await del_que(bot, group_id, 'all', no_que_str, False)
+            m, _ = await del_que(group_id, 'all', no_que_str, False)
             if m and not msg_dict.get(m):
                 msg_dict[m] = []
             if m:
@@ -214,7 +208,7 @@ async def delete_question(bot, ev):
         user_id = user_id if str(user_id_at) == str(ev.self_id) else user_id_at
     # 仅调整不要回答的问题中的图片
     no_que_str = await adjust_img(bot, no_que_str, False, False)
-    msg, del_image = await del_que(bot, group_id, user_id, no_que_str, True, priv.get_user_priv(ev) < 21)
+    msg, del_image = await del_que(group_id, user_id, no_que_str, True, priv.get_user_priv(ev) < 21)
     await bot.send(ev, msg)
     await delete_img(del_image)
 
@@ -227,7 +221,7 @@ async def xqa(bot, ev):
     group_dict = db.get(group_id, {'all': {}})
     message = html.unescape(message)
     # 仅调整问题中的图片
-    message = await adjust_img(bot, message, False, False)
+    message = await adjust_img(None, message, False, False)
 
     # 优先回复自己的问答
     ans = None
@@ -244,7 +238,7 @@ async def xqa(bot, ev):
     # 没有自己的问答才回复有人问
     ans = await match_ans(group_dict['all'], message, ans) if not ans else ans
     if ans:
-        ans = await adjust_img(bot, ans, True, False)
+        ans = await adjust_img(None, ans, True, False)
         await bot.send(ev, ans)
 
 

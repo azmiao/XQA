@@ -82,13 +82,14 @@ async def get_g_list(bot) -> list:
     return g_list
 
 
-# 搜索问答
+# 搜索问答 | 这里也需要处理一下图片，但不用保存
 async def get_search(que_list: list, search_str: str) -> list:
     if not search_str:
         return que_list
     search_list = []
+    search_str_ = await adjust_img(None, search_str, False, False)
     for question in que_list:
-        if re.search(rf'\S*{search_str}\S*', question):
+        if re.search(rf'\S*{search_str_}\S*', question):
             search_list.append(question)
     return search_list
 
@@ -147,24 +148,31 @@ async def doing_img(bot, img_name: str, img_file: str, img_url: str, save: bool)
             logger.critical(f'XQA: 从{img_url}下载图片{img_name}出错:' + str(e))
             assert Exception(f'调用get_image接口查询图片{img_name}出错:' + str(e))
 
-    if IS_BASE64:
-        # base64格式
-        with open(file, 'rb') as f:
-            image_file = 'base64://' + base64.b64encode(f.read()).decode()
+        # 只有在需要保存后，并且开启BASE64模式的时候才转化，普通的问题不需要转
+        if IS_BASE64:
+            with open(file, 'rb') as f:
+                return 'base64://' + base64.b64encode(f.read()).decode()
     else:
-        # file格式
-        image_file = 'file:///' + os.path.abspath(file)
-    return image_file
+        # 如果是问题的话不用保存图片，原来是啥就是啥，但是没关系，问题只用作匹配
+        return img_file
+    # 正常的回答还是返回文件路径
+    return 'file:///' + os.path.abspath(file)
 
 
 # 根据CQ中的"xxx=xxxx,yyy=yyyy,..."提取出file和file_name还有url
-async def extract_file(cq_code_str: str) -> (str, str, str):
+async def extract_file(cq_code_str: str) -> (bool, str, str, str):
     # 解析所有CQ码参数
     cq_split = cq_code_str.split(',')
 
     # 拿到file参数 | 如果是单文件名：原始CQ | 如果是带路径的文件名：XQA本地已保存的图片，需要获取到单文件名
     image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
     file_data = image_file_raw.replace('file=', '')
+
+    # base64就不需要花里胡哨的代码了，肯定是已经保存过了的 | 实际理论上不会用上，但留个保险让他逻辑可通
+    if 'base64://' in file_data:
+        logger.error('XQA: 收到base64格式的消息，理论上不应该触发，这个应该是个BUG，请携带CQ码完整日志反馈')
+        return True, file_data, None, None
+
     image_file = file_data.split('\\')[-1].split('/')[-1] if 'file:///' in file_data else file_data
 
     # 文件名 | Go-cq是没有这些参数的，可以直接用file参数 | 如果有才做特殊兼容处理：优先级：file_unique > filename > file_id
@@ -176,13 +184,14 @@ async def extract_file(cq_code_str: str) -> (str, str, str):
                            .replace('file_id=', '')) if not image_file_name_raw else image_file_name_raw
     # 如果三个都没有 | 那就直接用file参数，比如Go-cq
     image_file_name = image_file_name_raw if image_file_name_raw else image_file
+    image_file_name = image_file_name.replace('{', '').replace('}', '')
     # 补齐文件拓展名
     image_file_name = image_file_name if '.' in image_file_name[-10:] else image_file_name + '.image'
 
     # 拿到URL | GO-CQ是没有这个参数的 | NapCat有
     image_url = (next(filter(lambda x: x.startswith('url='), cq_split), '').replace('url=', ''))
 
-    return image_file, image_file_name, image_url
+    return False, image_file, image_file_name, image_url
 
 
 # 进行图片处理 | 问题：无需过滤敏感词，回答：需要过滤敏感词
@@ -198,9 +207,11 @@ async def adjust_img(bot, str_raw: str, is_ans: bool, save: bool) -> str:
         # 判断是否是图片
         if cq_code[1] == 'image':
             # 解析file和file_name
-            image_file, image_file_name, image_url = await extract_file(cq_code[2])
-            # 对图片单独保存图片，并修改图片路径为真实路径
-            image_file = await doing_img(bot, image_file_name, image_file, image_url, save)
+            is_base64, image_file, image_file_name, image_url = await extract_file(cq_code[2])
+            # 不是base64才需要保存图片或处理图片路径
+            if not is_base64:
+                # 对图片单独保存图片，并修改图片路径为真实路径
+                image_file = await doing_img(bot, image_file_name, image_file, image_url, save)
             # 图片CQ码：替换
             flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cq_code[1]},file={image_file}]')
         else:

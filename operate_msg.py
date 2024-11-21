@@ -1,6 +1,6 @@
 import html
 
-from .util import get_database, get_g_list, get_search, adjust_list, adjust_img, delete_img, spilt_msg
+from .util import *
 
 
 # 保存问答
@@ -10,8 +10,8 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, 
     que_raw = html.unescape(que_raw)
     ans_raw = html.unescape(ans_raw)
 
-    # 新问题就调整并下载图片
-    que_raw = await adjust_img(bot, que_raw, False, True)
+    # 新问题只调整 | 但不要下载图片，只要能匹配上就可以
+    que_raw = await adjust_img(bot, que_raw, False, False)
     # 已有问答再次设置的话，就先删除旧图片
     gid = gid if group_id == 'all' else group_id
     ans_old = db.get(gid, {}).get(user_id, {}).get(que_raw, [])
@@ -90,10 +90,11 @@ async def show_all_group_que(search_str: str, group_list: list) -> list:
 
 
 # 删除问答
-async def del_que(bot, group_id: str, user_id: str, no_que_str: str, is_singer_group: bool = True,
-                  is_self: bool = False) -> tuple:
+async def del_que(group_id: str, user_id: str, no_que_str: str, is_singer_group: bool = True, is_self: bool = False):
     db = await get_database()
-    no_que_str = html.unescape(no_que_str)
+    no_que_str_raw = html.unescape(no_que_str)
+    # 调整问题文本图片
+    no_que_str = await adjust_img(None, no_que_str_raw, False, False)
     group_dict = db.get(group_id, {'all': {}})
     user_dict = group_dict.get(user_id, {})
     # 删除我问
@@ -117,8 +118,9 @@ async def del_que(bot, group_id: str, user_id: str, no_que_str: str, is_singer_g
         else:
             ans = group_dict['all'].get(no_que_str)
             group_dict['all'].pop(no_que_str)
-    ans_str = '#'.join(ans)  # 调整图片
-    ans_str = await adjust_img(bot, ans_str, False, False)
+    ans_str = '#'.join(ans)
+    # 调整回答文本图片
+    ans_str = await adjust_img(None, ans_str, True, False)
     ans.append(no_que_str)
     db[group_id] = group_dict
     return f'我不再回答 “{ans_str}” 了', ans  # 返回输出文件以及需要删除的图片
