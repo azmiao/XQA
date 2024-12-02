@@ -175,9 +175,6 @@ async def extract_file(cq_code_str: str) -> (bool, str, str, str):
     # 文件参数
     image_file = file_data.split('\\')[-1].split('/')[-1] if 'file:///' in file_data else file_data
 
-    # 文件URL参数：LLOneBot 和 NapCat 有这个参数
-    image_url = (next(filter(lambda x: x.startswith('url='), cq_split), '').replace('url=', ''))
-
     # 文件名参数：对于LLOneBot | 需要取 filename 参数做文件名
     image_file_name = (next(filter(lambda x: x.startswith('filename='), cq_split), '')
                        .replace('filename=', ''))
@@ -187,8 +184,15 @@ async def extract_file(cq_code_str: str) -> (bool, str, str, str):
     # 文件名参数：对于其他可能的协议 | 需要取 file_id 参数做文件名
     image_file_name = (next(filter(lambda x: x.startswith('file_id='), cq_split), '')
                        .replace('file_id=', '')) if not image_file_name else image_file_name
-    # 文件名参数：对于GO-CQ | image_file 和 image_file_name 一致即可
-    image_file_name = image_file_name if image_file_name else image_file
+
+    # 如果有文件名参数：LLOneBot 和 NapCat
+    if image_file_name:
+        # 文件URL参数：LLOneBot 和 NapCat 有这个参数 | Go-CQ也有但不使用(URL缓存可能有问题)
+        image_url = (next(filter(lambda x: x.startswith('url='), cq_split), '').replace('url=', ''))
+    else:
+        image_url = None
+        # 文件名参数：对于GO-CQ | image_file 和 image_file_name 一致即可
+        image_file_name = image_file
     # 文件名参数：替换特殊字符为下划线
     image_file_name = re.sub(r'[\\/:*?"<>|{}]', '_', image_file_name)
     # 文件名参数：最后10个字符里没有点号 | 补齐文件拓展名
