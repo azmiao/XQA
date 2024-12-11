@@ -6,45 +6,43 @@ import random
 import re
 from urllib import request
 
-from hoshino import R, logger, util
-from sqlitedict import SqliteDict
+from rocksdict import Rdict
 
-from .textfilter.filter import DFAFilter
+from yuiChyan import logger
+from yuiChyan.config.xqa_config import *
+from yuiChyan.resources import xqa_db_, xqa_img_path, base_db_path
+from yuiChyan.util import filter_message
 
-# ==================== ↓ 可修改的配置 ↓ ====================
-'''
-建议只修改配置，不删注释，不然以后会忘了怎么改还可以再看看
-'''
 
-# 储存数据位置（二选一，初次使用后不可改动，除非自己手动迁移，重启BOT生效，也可换成自己想要的路径）
-FILE_PATH = R.img('xqa').path  # 数据在res文件夹里
-# FILE_PATH = os.path.dirname(__file__)     # 数据在插件文件夹里
+# 获取数据库
+async def get_database() -> Rdict:
+    return xqa_db_
 
-# 是否使用星乃自带的严格词库（二选一，可随时改动，重启BOT生效）
-# USE_STRICT = True     # 使用星乃自带敏感词库，较为严格，安全可靠
-USE_STRICT = False  # 使用XQA自带敏感词库，较为宽容，可自行增删
 
-# 是否要启用消息分段发送，仅在查询问题时生效，避免消息过长发不出去（可随时改动，重启BOT生效）
-IS_SPILT_MSG = True  # 是否要启用消息分段，默认开启，关闭改成False
-MSG_LENGTH = 1000  # 消息分段长度限制，只能数字，千万不能太小，默认1000
-SPLIT_INTERVAL = 1  # 消息分段发送时间间隔，只能数字，单位秒，默认1秒
+# 判断是否启用个人问答功能
+async def judge_enable_self(group_id: str):
+    xqa_db = await get_database()
+    group_auth = xqa_db.get('config', {})
+    auth_config = group_auth.get(group_id, {})
+    return auth_config.get('self', True)
 
-# 是否使用转发消息发送，仅在查询问题时生效，和上方消息分段可同时开启（可随时改动，重启BOT生效）
-IS_FORWARD = False  # 开启后将使用转发消息发送，默认关闭
 
-# 设置问答的时候，是否校验回答的长度，最大长度和上方 MSG_LENGTH 保持一致（可随时改动，重启BOT生效）
-IS_JUDGE_LENGTH = False  # 校验回答的长度，在长度范围内就允许设置问题，超过就不允许，默认开启
-
-# 如果开启分段发送，且长度没超限制，且开启转发消息时，由于未超长度限制只有一条消息，这时是否需要直接发送而非转发消息（可随时改动，重启BOT生效）
-IS_DIRECT_SINGER = True  # 直接发送，默认开启
-
-# 看问答的时候，展示的分隔符（可随时改动，重启BOT生效）
-SPLIT_MSG = ' | '  # 默认' | '，可自行换成'\n'或者' '等。单引号不能漏
-
-# 是否使用base64格式发送图片（适合使用docker部署或者使用shamrock）
-IS_BASE64 = False
-
-# ==================== ↑ 可修改的配置 ↑ ====================
+# 修改启用个人问答功能的状态
+async def modify_enable_self(group_id: str, enable: bool) -> str:
+    xqa_db = await get_database()
+    group_auth = xqa_db.get('config', {})
+    auth_config = group_auth.get(group_id, {})
+    # 判断原来的状态
+    self_enable = auth_config.get('self', True)
+    if self_enable and enable:
+        return '本群已经启用了个人问答哦，无需再次启用'
+    elif (not self_enable) and (not enable):
+        return '本群已经禁用了个人问答哦，无需再次禁用'
+    # 修改
+    auth_config['self'] = enable
+    group_auth[group_id] = auth_config
+    xqa_db['config'] = group_auth
+    return ''
 
 
 # 判断是否在群里
@@ -60,16 +58,27 @@ async def judge_ismember(bot, group_id: str, user_id: str) -> bool:
         return False
 
 
-# 获取数据库
-async def get_database() -> SqliteDict:
-    # 创建目录
-    img_path = os.path.join(FILE_PATH, 'img/')
-    if not os.path.exists(img_path):
-        os.makedirs(img_path)
-    db_path = os.path.join(FILE_PATH, 'data.sqlite')
-    # 替换默认的pickle为json的形式读写数据库
-    db = SqliteDict(db_path, encode=json.dumps, decode=json.loads, autocommit=True)
-    return db
+# 数据库导出至JSON文件
+async def export_json():
+    xqa_db = await get_database()
+    db_json_path = os.path.join(base_db_path, 'xqa_db.json')
+    data = {}
+    for key, value in xqa_db.items():
+        data[key] = value
+    with open(db_json_path, 'w', encoding='UTF-8') as file:
+        # noinspection PyTypeChecker
+        json.dump(data, file, indent=4, ensure_ascii=False)
+
+
+# JSON文件转换回数据库文件
+async def import_json():
+    db_json_path = os.path.join(base_db_path, 'xqa_db.json')
+    with open(db_json_path, 'r', encoding='UTF-8') as file:
+        data = dict(json.load(file))
+    xqa_db_temp = Rdict(os.path.join(base_db_path, 'xqa_temp.db'))
+    # 将数据写入数据库
+    for key, value in data.items():
+        xqa_db_temp[key] = value
 
 
 # 获取群列表
@@ -124,8 +133,7 @@ async def adjust_list(list_tmp: list, char: str) -> list:
 
 # 下载图片并转换图片路径
 async def doing_img(bot, img_name: str, img_file: str, img_url: str, save: bool) -> str:
-    img_path = os.path.join(FILE_PATH, 'img')
-    file = os.path.join(img_path, img_name)
+    file = os.path.join(xqa_img_path, img_name)
 
     # 调用协议客户端实现接口下载图片
     if save:
@@ -150,8 +158,8 @@ async def doing_img(bot, img_name: str, img_file: str, img_url: str, save: bool)
 
         # 只有在需要保存后，并且开启BASE64模式的时候才转化，普通的问题不需要转
         if IS_BASE64:
-            with open(file, 'rb') as f:
-                return 'base64://' + base64.b64encode(f.read()).decode()
+            with open(file, 'rb') as file_:
+                return 'base64://' + base64.b64encode(file_.read()).decode()
     else:
         # 如果是问题的话不用保存图片，原来是啥就是啥，但是没关系，问题只用作匹配
         return img_file
@@ -202,11 +210,11 @@ async def adjust_img(bot, str_raw: str, is_ans: bool, save: bool) -> str:
     # 找出其中所有的CQ码
     cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)])', str_raw)
     # 整个消息过滤敏感词，问题：无需过滤
-    flit_msg = beautiful(str_raw) if is_ans else str_raw
+    flit_msg = await filter_message(str_raw) if is_ans else str_raw
     # 对每个CQ码元组进行操作
     for cq_code in cq_list:
         # 对当前的完整的CQ码过滤敏感词，问题：无需过滤
-        flit_cq = beautiful(cq_code[0]) if is_ans else cq_code[0]
+        flit_cq = await filter_message(cq_code[0]) if is_ans else cq_code[0]
         # 判断是否是图片
         if cq_code[1] == 'image':
             # 解析file和file_name
@@ -261,36 +269,12 @@ async def delete_img(list_raw: list):
             if 'base64' in image_file:
                 # 目前屎山架构base64不好删，不管了
                 continue
-            img_path = os.path.join(FILE_PATH, 'img', image_file)
+            img_path = os.path.join(xqa_img_path, image_file)
             try:
                 os.remove(img_path)
                 logger.info(f'XQA: 已删除图片{image_file}')
             except Exception as e:
                 logger.info(f'XQA: 图片{image_file}删除失败：' + str(e))
-
-
-# 和谐模块
-def beautifulworld(msg: str) -> str:
-    w = ''
-    infolist = msg.split('[')
-    for i in infolist:
-        if i:
-            try:
-                w = w + '[' + i.split(']')[0] + ']' + beautiful(i.split(']')[1])
-            except:
-                w = w + beautiful(i)
-    return w
-
-
-# 切换和谐词库
-def beautiful(msg: str) -> str:
-    beautiful_message = DFAFilter()
-    beautiful_message.parse(os.path.join(os.path.dirname(__file__), 'textfilter', 'sensitive_words.txt'))
-    if USE_STRICT:
-        msg = util.filt_message(msg)
-    else:
-        msg = beautiful_message.filter(msg)
-    return msg
 
 
 # 消息分段 | 输入：问题列表 和 初始的前缀消息内容 | 返回：需要发送的完整消息列表（不分段列表里就一个）

@@ -119,26 +119,26 @@ async def del_que(group_id: str, user_id: str, no_que_str: str, is_singer_group:
 
 
 # 复制问答
-async def copy_que(group_1, group_2, msg_1):
+async def copy_que(group_1, group_2, copy_type):
     db = await get_database()
-    if not msg_1:
+    if not copy_type:
         group_dict = db.get(group_1, {'all': {}}).get('all', {})
         group_dict_2 = db.get(group_2, {'all': {}})
         group_dict_2['all'] = group_dict
         db[group_2] = group_dict_2
         return f'已将群{group_1}的有人问复制至群{group_2}'
-    elif msg_1 == 'full':
+    elif copy_type == 'full':
         group_dict = db.get(group_1, {'all': {}})
         db[group_2] = group_dict
         return f'已将群{group_1}的全部问答复制至群{group_2}'
-    elif msg_1 == 'self':
+    elif copy_type == 'self':
         group_dict = db.get(group_1, {'all': {}})
         group_dict_2 = db.get(group_2, {'all': {}}).get('all', {})
         group_dict['all'] = group_dict_2
         db[group_2] = group_dict
         return f'已将群{group_1}的个人问答复制至群{group_2}'
     else:
-        return f'不支持的参数输入：{msg_1}'
+        return f'不支持的复制类型输入：{copy_type}'
 
 
 # 清空问答
