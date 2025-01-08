@@ -4,9 +4,10 @@ import json
 import os
 import random
 import re
+from typing import Optional
 from urllib import request
 
-from hoshino import R, logger, util
+from hoshino import R, logger, util, get_bot
 from sqlitedict import SqliteDict
 
 from .textfilter.filter import DFAFilter
@@ -63,13 +64,37 @@ async def judge_ismember(bot, group_id: str, user_id: str) -> bool:
 # 获取数据库
 async def get_database() -> SqliteDict:
     # 创建目录
-    img_path = os.path.join(FILE_PATH, 'img/')
+    img_path = os.path.join(FILE_PATH, 'img')
     if not os.path.exists(img_path):
         os.makedirs(img_path)
     db_path = os.path.join(FILE_PATH, 'data.sqlite')
     # 替换默认的pickle为json的形式读写数据库
     db = SqliteDict(db_path, encode=json.dumps, decode=json.loads, autocommit=True)
     return db
+
+
+# 数据库导出至JSON文件
+async def export_json():
+    xqa_db = await get_database()
+    db_json_path = os.path.join(FILE_PATH, 'xqa_db.json')
+    data = {}
+    for key, value in xqa_db.items():
+        data[key] = value
+    with open(db_json_path, 'w', encoding='UTF-8') as file:
+        # noinspection PyTypeChecker
+        json.dump(data, file, indent=4, ensure_ascii=False)
+
+
+# JSON文件转换回数据库文件
+async def import_json():
+    db_json_path = os.path.join(FILE_PATH, 'xqa_db.json')
+    with open(db_json_path, 'r', encoding='UTF-8') as file:
+        data = dict(json.load(file))
+    xqa_db_temp_path = os.path.join(FILE_PATH, 'data_temp.sqlite')
+    xqa_db_temp = SqliteDict(xqa_db_temp_path, encode=json.dumps, decode=json.loads, autocommit=True)
+    # 将数据写入数据库
+    for key, value in data.items():
+        xqa_db_temp[key] = value
 
 
 # 获取群列表
@@ -123,44 +148,59 @@ async def adjust_list(list_tmp: list, char: str) -> list:
 
 
 # 下载图片并转换图片路径
-async def doing_img(bot, img_name: str, img_file: str, img_url: str, save: bool) -> str:
+async def doing_img(image_file: str, image_name: str, image_url: str, save: bool) -> str:
     img_path = os.path.join(FILE_PATH, 'img')
-    file = os.path.join(img_path, img_name)
+    image_path = os.path.join(img_path, image_name)
 
     # 调用协议客户端实现接口下载图片
     if save:
-        # 如果没有image_url，说明是GO-CQ的客户端，重新取一下图片URL
-        if not img_url:
-            img_data = None
-            try:
-                img_data = await bot.get_image(file=img_file)
-            except Exception as e:
-                logger.critical(f'XQA: 调用get_image接口查询图片{img_file}出错:' + str(e))
-                assert Exception(f'调用get_image接口查询图片{img_file}出错:' + str(e))
-            img_url = img_data['url']
-
-        # 开始下载图片
-        try:
-            if not os.path.isfile(file):
-                request.urlretrieve(url=img_url, filename=file)
-                logger.critical(f'XQA: 已从{img_url}下载到图片{img_name}')
-        except Exception as e:
-            logger.critical(f'XQA: 从{img_url}下载图片{img_name}出错:' + str(e))
-            assert Exception(f'调用get_image接口查询图片{img_name}出错:' + str(e))
-
+        await save_image(image_file, image_name, image_url, image_path)
         # 只有在需要保存后，并且开启BASE64模式的时候才转化，普通的问题不需要转
         if IS_BASE64:
-            with open(file, 'rb') as f:
-                return 'base64://' + base64.b64encode(f.read()).decode()
+            with open(image_path, 'rb') as file_:
+                return 'base64://' + base64.b64encode(file_.read()).decode()
     else:
         # 如果是问题的话不用保存图片，原来是啥就是啥，但是没关系，问题只用作匹配
-        return img_file
+        return image_file
     # 正常的回答还是返回文件路径
-    return 'file:///' + os.path.abspath(file)
+    return 'file:///' + os.path.abspath(image_path)
+
+
+# 获取真实URL
+async def get_real_url(image_file: str) -> str:
+    try:
+        img_data = await get_bot().get_image(file=image_file)
+    except Exception as e:
+        raise Exception(f'XQA调用get_image接口查询图片{image_file}出错:{str(e)}')
+    return img_data['url']  # type: ignore
+
+
+# 保存图片
+async def save_image(image_file: str, image_name: str, image_url: Optional[str], image_path: str) -> str:
+    # 如果没有image_url，说明是GO-CQ的客户端，重新取一下图片URL
+    image_url = image_url if image_url else await get_real_url(image_file)
+
+    # 开始下载图片
+    try:
+        if not os.path.isfile(image_path):
+            request.urlretrieve(url=image_url, filename=image_path)
+    except Exception as e:
+        raise Exception(f'XQA从{image_url}下载图片{image_name}出错:{str(e)}')
+    return image_name
 
 
 # 根据CQ中的"xxx=xxxx,yyy=yyyy,..."提取出file和file_name还有url
 async def extract_file(cq_code_str: str) -> (bool, str, str, str):
+    """
+    根据CQ中的"xxx=xxxx,yyy=yyyy,..."提取出file和file_name还有url
+
+    :param cq_code_str: 原始CQ中提取的"xxx=xxxx,yyy=yyyy,..."
+
+    :return: is_base64: 是否是base64编码 |
+    image_file: file参数 |
+    image_file_name: 文件名，GO-CQ没有这个参数因此和image_file保持一致，LLOneBot为filename参数，NapCat为file_unique参数，其他为file_id参数 |
+    image_url: 图片URL，GO-CQ的URL不正确不建议使用所以这里会返回None，LLOneBot 和 NapCat 有这个参数直接返回对应URL
+    """
     # 解析所有CQ码参数
     cq_split = cq_code_str.split(',')
 
@@ -168,7 +208,7 @@ async def extract_file(cq_code_str: str) -> (bool, str, str, str):
     image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
     file_data = image_file_raw.replace('file=', '')
 
-    # base64就不需要花里胡哨的代码了，肯定是已经保存过了的
+    # base64就不需要花里胡哨的代码了 | 直接返回
     if 'base64://' in file_data:
         return True, file_data, None, None
 
@@ -201,8 +241,9 @@ async def extract_file(cq_code_str: str) -> (bool, str, str, str):
     return False, image_file, image_file_name, image_url
 
 
+
 # 进行图片处理 | 问题：无需过滤敏感词，回答：需要过滤敏感词
-async def adjust_img(bot, str_raw: str, is_ans: bool, save: bool) -> str:
+async def adjust_img(_, str_raw: str, is_ans: bool, save: bool) -> str:
     # 找出其中所有的CQ码
     cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)])', str_raw)
     # 整个消息过滤敏感词，问题：无需过滤
@@ -218,7 +259,7 @@ async def adjust_img(bot, str_raw: str, is_ans: bool, save: bool) -> str:
             # 不是base64才需要保存图片或处理图片路径
             if not is_base64:
                 # 对图片单独保存图片，并修改图片路径为真实路径
-                image_file = await doing_img(bot, image_file_name, image_file, image_url, save)
+                image_file = await doing_img(image_file, image_file_name, image_url, save)
             # 图片CQ码：替换
             flit_msg = flit_msg.replace(flit_cq, f'[CQ:{cq_code[1]},file={image_file}]')
         else:
@@ -254,7 +295,7 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
 
 
 # 删啊删
-async def delete_img(list_raw: list):
+def delete_img(list_raw: list):
     for str_raw in list_raw:
         # 这里理论上是已经规范好了的图片 | file参数就直接是路径或者base64
         cq_list = re.findall(r'(\[CQ:(\S+?),(\S+?)])', str_raw)

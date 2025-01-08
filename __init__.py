@@ -1,14 +1,5 @@
-"""
-作者：AZMIAO
-
-版本：1.5.5
-
-XQA：支持正则，支持回流，支持随机回答，支持图片等CQ码的你问我答
-"""
-
 from hoshino import Service, priv
 
-from .move_data import *
 from .operate_msg import *
 from .util import *
 
@@ -16,6 +7,7 @@ from .util import *
 group_auth_path = os.path.join(os.path.dirname(__file__), 'group_auth.json')
 if not os.path.exists(group_auth_path):
     with open(group_auth_path, 'w', encoding='UTF-8') as f:
+        # noinspection PyTypeChecker
         json.dump({}, f, indent=4, ensure_ascii=False)
 
 
@@ -108,7 +100,12 @@ async def set_question(bot, ev):
             return
         group_id = 'all'
 
-    msg = await set_que(bot, group_id, user_id, que_raw, ans_raw, str(ev.group_id))
+    # 检查是否泛匹配
+    if re.match(fr'{que_raw}', '检测文本'):
+        await bot.send(ev, f'不可设置泛匹配问题哦')
+        return
+
+    msg = await set_que(bot, group_id, user_id, que_raw, ans_raw)
     await bot.send(ev, msg)
 
 
@@ -210,7 +207,7 @@ async def delete_question(bot, ev):
     no_que_str = await adjust_img(bot, no_que_str, False, False)
     msg, del_image = await del_que(group_id, user_id, no_que_str, True, priv.get_user_priv(ev) < 21)
     await bot.send(ev, msg)
-    await delete_img(del_image)
+    delete_img(del_image)
 
 
 # 回复问答
@@ -317,6 +314,7 @@ async def xqa_disable_self(bot, ev):
     auth_config['self'] = False
     group_auth[group_id] = auth_config
     with open(group_auth_path, 'w', encoding='UTF-8') as file:
+        # noinspection PyTypeChecker
         json.dump(group_auth, file, indent=4, ensure_ascii=False)
     await bot.send(ev, f'本群已成功禁用个人问答功能！')
 
@@ -338,6 +336,7 @@ async def xqa_enable_self(bot, ev):
     auth_config['self'] = True
     group_auth[group_id] = auth_config
     with open(group_auth_path, 'w', encoding='UTF-8') as file:
+        # noinspection PyTypeChecker
         json.dump(group_auth, file, indent=4, ensure_ascii=False)
     await bot.send(ev, f'本群已成功启用个人问答功能！')
 
@@ -372,26 +371,23 @@ async def xqa_delete_all(bot, ev):
     await bot.send(ev, msg)
 
 
-# 提取艾琳佬的eqa数据
-@sv.on_fullmatch('.xqa_extract_data')
-async def xqa_extract_data(bot, ev):
+# 提取数据
+@sv.on_fullmatch('XQA提取数据')
+async def xqa_export_data(bot, ev):
     if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev, f'该功能限维护组')
         return
-    await bot.send(ev, await get_dict())
+
+    await export_json()
+    await bot.send(ev, 'XQA提取完成，请检查日志')
 
 
-# 写入提取出的数据
-@sv.on_fullmatch('.xqa_write_data')
-async def xqa_write_data(bot, ev):
+# 重建数据
+@sv.on_fullmatch('XQA重建数据')
+async def xqa_import_data(bot, ev):
     if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev, f'该功能限维护组')
         return
-    await bot.send(ev, await write_info())
 
-
-# 格式化数据
-@sv.on_fullmatch('.xqa_format_data')
-async def xqa_format_data(bot, ev):
-    if not priv.check_priv(ev, priv.SUPERUSER):
-        return
-    await bot.send(ev, '正在进行格式化，请查看后台日志')
-    await bot.send(ev, await format_info(bot))
+    await import_json()
+    await bot.send(ev, 'XQA重建完成，新数据将存在"data_temp.sqlite"中，请自行备份替换')
