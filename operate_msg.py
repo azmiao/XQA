@@ -2,16 +2,26 @@ from .util import *
 
 
 # 保存问答
-async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str, gid: str) -> str:
+async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) -> str:
     db = await get_database()
 
     # 新问题只调整 | 但不要下载图片，只要能匹配上就可以
     que_raw = await adjust_img(bot, que_raw, False, False)
-    # 已有问答再次设置的话，就先删除旧图片
-    gid = gid if group_id == 'all' else group_id
-    ans_old = db.get(gid, {}).get(user_id, {}).get(que_raw, [])
-    if ans_old:
-        await delete_img(ans_old)
+    # 已有问答再次设置的话，就检测是否是唯一的问答，如果是就删除旧图片，防止删错别的群的相同问答
+    ans_list = []
+    for _group_id in db.keys():
+        user_dict = db.get(_group_id, {})
+        for _user_id in user_dict:
+            # 有人问只找有人问的问题，我问只找我问的问题
+            if (user_id == 'all' or group_id == 'all') and _user_id != 'all':
+                continue
+            elif (user_id != 'all' and group_id != 'all') and _user_id == 'all':
+                continue
+            que_dict = user_dict.get(_user_id, {})
+            if que_raw in que_dict:
+                ans_list.append(que_dict.get(que_raw, []))
+    if ans_list and len(ans_list) == 1:
+        delete_img(ans_list[0])
 
     # 保存新的回答
     ans_raw = await adjust_img(bot, ans_raw, True, True)
