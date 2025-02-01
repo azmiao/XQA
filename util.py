@@ -159,9 +159,6 @@ async def doing_img(image_file: str, image_name: str, image_url: str, save: bool
         if IS_BASE64:
             with open(image_path, 'rb') as file_:
                 return 'base64://' + base64.b64encode(file_.read()).decode()
-    else:
-        # 如果是问题的话不用保存图片，原来是啥就是啥，但是没关系，问题只用作匹配
-        return image_file
     # 正常的回答还是返回文件路径
     return 'file:///' + os.path.abspath(image_path)
 
@@ -183,7 +180,13 @@ async def save_image(image_file: str, image_name: str, image_url: Optional[str],
     # 开始下载图片
     try:
         if not os.path.isfile(image_path):
-            request.urlretrieve(url=image_url, filename=image_path)
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            ctx = ssl.create_default_context()
+            ctx.set_ciphers('ALL')
+            with httpx.Client(verify=ctx, headers=headers) as session:
+                with session.stream('GET', image_url) as resp:
+                    with open(image_path, 'wb') as f:
+                        f.write(resp.read())
     except Exception as e:
         raise Exception(f'XQA从{image_url}下载图片{image_name}出错:{str(e)}')
     return image_name
@@ -252,8 +255,8 @@ async def adjust_img(_, str_raw: str, is_ans: bool, save: bool) -> str:
     for cq_code in cq_list:
         # 对当前的完整的CQ码过滤敏感词，问题：无需过滤
         flit_cq = beautiful(cq_code[0]) if is_ans else cq_code[0]
-        # 判断是否是图片 | 是问题才这样做，是回答就直接当作其他CQ码还原回去
-        if (not is_ans) and (cq_code[1] == 'image'):
+        # 判断是否是图片
+        if cq_code[1] == 'image':
             # 解析file和file_name
             is_base64, image_file, image_file_name, image_url = await extract_file(cq_code[2])
             # 不是base64才需要保存图片或处理图片路径
