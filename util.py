@@ -4,9 +4,10 @@ import json
 import os
 import random
 import re
+import ssl
 from typing import Optional
-from urllib import request
 
+import httpx
 from hoshino import R, logger, util, get_bot
 from sqlitedict import SqliteDict
 
