@@ -141,7 +141,7 @@ async def search_question(bot, ev):
     if priv.get_user_priv(ev) < 21:
         await bot.send(ev, f'搜索某个成员的问答只能群管理操作呢。个人查询问答请使用“看看我问”+搜索内容')
         return
-    search_match = re.match(r'\[CQ:at,qq=([0-9]+)] ?(\S*)', str(ev.message))
+    search_match = re.match(r'\[CQ:at,qq=([0-9]+)\S*] ?(\S*)', str(ev.message))
     try:
         user_id, search_str = search_match.group(1), search_match.group(2)
     except:
@@ -153,9 +153,11 @@ async def search_question(bot, ev):
         await bot.send(ev, f'该成员{user_id}不在该群中，请检查')
         return
 
-    msg_init = f'QQ({user_id})的查询结果：\n'
-    msg_head = f'查询"{search_str}"相关的结果如下：\n' if search_str else ''
-    result_list = await show_que(group_id, user_id, search_str, msg_init + msg_head)
+    # 查询内容
+    search_str_new = f'"{search_str}"的' if search_str else ''
+    # 消息头
+    msg_head = f'QQ({user_id})个人问答的查询{search_str_new}结果：\n'
+    result_list = await show_que(group_id, user_id, search_str, msg_head)
     # 发送消息
     await send_result_msg(bot, ev, result_list)
 
@@ -163,7 +165,7 @@ async def search_question(bot, ev):
 # 不要回答，管理员可以@人删除回答
 @sv.on_message('group')
 async def delete_question(bot, ev):
-    no_que_match = re.match(r'^(\[CQ:at,qq=[0-9]+])? ?(全群)?不要回答([\s\S]*)$', str(ev.message))
+    no_que_match = re.match(r'^(\[CQ:at,qq=[0-9]+\S*])? ?(全群)?不要回答([\s\S]*)$', str(ev.message))
     if not no_que_match:
         return
     # 用户 | 是否全群 | 不要回答的问题
