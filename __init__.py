@@ -100,9 +100,10 @@ async def set_question(bot, ev):
             return
         group_id = 'all'
 
-    # 检查是否泛匹配
-    if re.match(fr'{que_raw}', '检测文本'):
-        await bot.send(ev, f'不可设置泛匹配问题哦')
+    # 检查内容
+    filter_result = await question_filter(que_raw, ans_raw)
+    if filter_result:
+        await bot.send(ev, filter_result)
         return
 
     msg = await set_que(bot, group_id, user_id, que_raw, ans_raw)

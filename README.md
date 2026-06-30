@@ -8,11 +8,11 @@
 
 ## 版本说明
 
-#### 初版测试过基本可用的代码已停止更新，最后一版存在分支[v1.5.4](https://github.com/azmiao/XQA/tree/v1.5.4))中
-
-#### v1.6.0+版本迁移了部分自用的闭源YuiChyanBot代码，理论上更兼容LLOnebot和NapCat，但由于本地已无HoshinoBot环境，未经完全测试，有问题请提出
+#### v1.6.0+版本迁移了部分自用的[YuiChyanBot](https://github.com/azmiao/YuiChyanBot)代码，理论上更兼容LLOnebot和NapCat，但由于本地已无HoshinoBot环境，未经完全测试，有问题请提出
 
 ## 最近更新日志
+
+26-06-30    v1.6.3  调整显性CQ排除，优化删除图片逻辑，优化复读图片，修复图片保存问题，优化泛匹配问题拦截
 
 25-05-08    v1.6.2  优化正则匹配，更加兼容llonebot之类的协议实现客户端
 
@@ -67,12 +67,9 @@
 
 ### 软件要求
 
-> 协议实现客户端任选之一：
- + go-cqhttp(原版) >= 1.0.0-rc1 (优先推荐)
- + NapCat >= 3.0.0 (次级推荐，因为不同版本有差异，可能不太稳定，建议自测哦)
- + LLOnebot >= 4.6.2 (次级推荐)
- + go-cqhttp(LagrangeDev版) >= 2.0.0 (未测试)
- + OpenShamrock >= 1.1.1 (未测试)
+> 协议实现客户端推荐任选之一：
+ + NapCat >= 3.0.0
+ + LLOnebot >= 4.6.2
 
 > BOT后台支持：
  + hoshino >= 2.0.0
