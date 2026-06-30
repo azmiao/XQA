@@ -20,8 +20,7 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) 
             que_dict = user_dict.get(_user_id, {})
             if que_raw in que_dict:
                 ans_list.append(que_dict.get(que_raw, []))
-    if ans_list and len(ans_list) == 1:
-        delete_img(ans_list[0])
+    old_ans = ans_list[0] if ans_list and len(ans_list) == 1 else []
 
     # 保存新的回答
     ans_raw = await adjust_img(bot, ans_raw, True, True)
@@ -44,6 +43,8 @@ async def set_que(bot, group_id: str, user_id: str, que_raw: str, ans_raw: str) 
         user_dict[que_raw] = ans
         group_dict[user_id] = user_dict
         db[group_id] = group_dict
+    if old_ans:
+        delete_img(old_ans)
     return '好的我记住了'
 
 

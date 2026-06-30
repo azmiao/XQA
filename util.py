@@ -329,6 +329,23 @@ async def match_ans(info: dict, message: str, ans: str) -> str:
 
 # 删图片
 def delete_img(list_raw: list):
+    used_image = get_used_images()
+    del_image = get_msg_images(list_raw)
+
+    for image_file in del_image:
+        if image_file in used_image:
+            continue
+        img_path = image_file if os.path.isabs(image_file) else os.path.join(xqa_img_path, image_file)
+        try:
+            os.remove(img_path)
+            logger.info(f'XQA: 已删除图片{image_file}')
+        except Exception as e:
+            logger.info(f'XQA: 图片{image_file}删除失败：' + str(e))
+
+
+# 提取消息中的XQA图片文件
+def get_msg_images(list_raw: list) -> set:
+    image_set = set()
     for str_raw in list_raw:
         # 这里理论上是已经规范好了的图片 | file参数就直接是路径或者base64
         cq_list = re.findall(r'(\[CQ:image,(\S+?)])', str_raw)
@@ -337,14 +354,24 @@ def delete_img(list_raw: list):
             image_file_raw = next(filter(lambda x: x.startswith('file='), cq_split), '')
             image_file = image_file_raw.replace('file=', '').replace('file:///', '')
             if 'base64' in image_file:
-                # 目前屎山架构base64不好删，不管了
                 continue
-            img_path = os.path.join(FILE_PATH, 'img', image_file)
-            try:
-                os.remove(img_path)
-                logger.info(f'XQA: 已删除图片{image_file}')
-            except Exception as e:
-                logger.info(f'XQA: 图片{image_file}删除失败：' + str(e))
+            image_set.add(image_file)
+    return image_set
+
+
+# 获取数据库里仍被引用的XQA图片文件
+def get_used_images() -> set:
+    image_set = set()
+    for group_id, user_dict in xqa_db_.items():
+        if group_id == 'config' or not isinstance(user_dict, dict):
+            continue
+        for que_dict in user_dict.values():
+            if not isinstance(que_dict, dict):
+                continue
+            for que, ans_list in que_dict.items():
+                image_set.update(get_msg_images([que]))
+                image_set.update(get_msg_images(ans_list))
+    return image_set
 
 
 # 和谐模块
